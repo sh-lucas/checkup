@@ -1,25 +1,18 @@
 use poem::{Route, get, handler, web::Json};
 
 pub fn with_routes(app: Route) -> Route {
-    app.at("/", get(hello)).at("/test", get(test))
-}
-
-#[handler]
-fn hello() -> &'static str {
-    "Hello, world!"
+    app.at("/", get(healthz))
 }
 
 #[derive(Debug, serde::Serialize)]
-struct Poem {
-    title: String,
-    description: String,
+struct Healthz {
+    message: String,
 }
 
+// ping handler
 #[handler]
-fn test() -> Json<Poem> {
-    let poem = Poem {
-        title: "The Road Not Taken".to_string(),
-        description: "Cool poem about choices.".to_string(),
-    };
-    Json(poem)
+fn healthz() -> Json<Healthz> {
+    Json(Healthz {
+        message: "server online.".to_string(),
+    })
 }
