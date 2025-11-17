@@ -1,7 +1,10 @@
-use poem::{Route, get, handler, web::Json};
+use crate::handlers::add_watcher::add_watcher;
+use poem::{Route, get, handler, post, web::Json};
 
 pub fn with_routes(app: Route) -> Route {
-    app.at("/", get(healthz))
+    return app
+        .at("/", get(healthz))
+        .at("/watchers/create", post(add_watcher));
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -1,17 +1,20 @@
 use std::env;
 
 use dotenvy::dotenv;
-use poem::{Route, Server, listener::TcpListener};
+use poem::{EndpointExt, Route, Server, listener::TcpListener, middleware::AddData};
 
+mod database;
+mod handlers;
 mod routes;
-use routes::with_routes;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     dotenv().ok();
 
-    // creates the default handler and adds the routes =)
-    let app = with_routes(Route::new());
+    let pool = database::setup_database().await;
+
+    // web api server:
+    let app = routes::with_routes(Route::new()).with(AddData::new(pool));
 
     let port = env::var("PORT").expect("PORT not set in environment variables.");
     let host = format!("0.0.0.0:{}", port);
