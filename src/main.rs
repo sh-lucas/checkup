@@ -5,6 +5,8 @@ use poem::{EndpointExt, Route, Server, listener::TcpListener, middleware::AddDat
 
 mod database;
 mod handlers;
+mod middlewares;
+mod repositories;
 mod routes;
 
 #[tokio::main]
@@ -14,7 +16,9 @@ async fn main() -> Result<(), std::io::Error> {
     let pool = database::setup_database().await;
 
     // web api server:
-    let app = routes::with_routes(Route::new()).with(AddData::new(pool));
+    let app = routes::with_routes(Route::new())
+        .with(AddData::new(pool))
+        .with(middlewares::BasicLog);
 
     let port = env::var("PORT").expect("PORT not set in environment variables.");
     let host = format!("0.0.0.0:{}", port);
