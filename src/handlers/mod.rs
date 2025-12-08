@@ -1,1 +1,2 @@
-pub mod add_watcher;
+mod add_watcher;
+pub use add_watcher::*;
