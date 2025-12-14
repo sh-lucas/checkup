@@ -6,6 +6,7 @@ use poem::{EndpointExt, Route, Server, listener::TcpListener, middleware::AddDat
 mod database;
 mod handlers;
 mod middlewares;
+mod models;
 mod repositories;
 mod routes;
 mod watching;
@@ -26,7 +27,8 @@ async fn main() -> Result<(), std::io::Error> {
     println!("Listening on http://{}", host);
 
     // example of a watcher:
-    watching::watch(&pool, 1).await;
+    // watching::watch(&pool, 1).await;
+    watching::ping_from_stream(watching::stream_watchers_from(&pool), &pool).await;
 
     Server::new(TcpListener::bind(host)).run(app).await
 }

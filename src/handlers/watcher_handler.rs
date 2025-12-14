@@ -1,3 +1,4 @@
+use crate::models;
 use crate::repositories;
 use poem::{
     handler,
@@ -5,14 +6,8 @@ use poem::{
 };
 use sqlx::{Pool, Sqlite};
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct Watcher {
-    pub url: String,
-    pub interval: u64,
-}
-
 #[handler]
-pub async fn add_watcher(watcher: Json<Watcher>, pool: Data<&Pool<Sqlite>>) -> String {
+pub async fn add_watcher(watcher: Json<models::Watcher>, pool: Data<&Pool<Sqlite>>) -> String {
     let pool = pool.0;
 
     let interval = watcher.interval as i64;
