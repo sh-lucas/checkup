@@ -3,7 +3,7 @@ use sqlx::{Pool, Sqlite};
 
 /// logs a status change if it's different from the latest log
 pub async fn log_status_change(
-    poll: &Pool<Sqlite>,
+    pool: &Pool<Sqlite>,
     watcher_id: i64,
     status: &str,
 ) -> Result<(), sqlx::Error> {
@@ -13,7 +13,7 @@ pub async fn log_status_change(
         "SELECT status FROM pings WHERE watcher_id = ? ORDER BY timestamp DESC LIMIT 1",
         watcher_id
     )
-    .fetch_one(poll)
+    .fetch_one(pool)
     .await?;
 
     if latest_log.status == status {
@@ -26,7 +26,7 @@ pub async fn log_status_change(
         status,
         now,
     )
-    .execute(poll)
+    .execute(pool)
     .await?;
 
     Ok(())

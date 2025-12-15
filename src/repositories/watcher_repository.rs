@@ -4,13 +4,13 @@ use sqlx::Error;
 use sqlx::{Pool, Sqlite};
 use std::pin::Pin;
 
-pub async fn create_watcher(url: &str, poll: &Pool<Sqlite>) -> Option<i64> {
+pub async fn create_watcher(url: &str, pool: &Pool<Sqlite>) -> Option<i64> {
     let result = sqlx::query!(
         "INSERT INTO watchers (url) 
         VALUES (?) RETURNING id",
         url
     )
-    .fetch_one(poll)
+    .fetch_one(pool)
     .await;
 
     match result {
@@ -20,7 +20,7 @@ pub async fn create_watcher(url: &str, poll: &Pool<Sqlite>) -> Option<i64> {
 }
 
 pub fn stream_all_watchers<'a>(
-    poll: &'a Pool<Sqlite>,
+    pool: &'a Pool<Sqlite>,
 ) -> Pin<Box<dyn Stream<Item = Result<models::Watcher, Error>> + Send + 'a>> {
-    Box::pin(sqlx::query_as::<_, models::Watcher>("SELECT * FROM watchers").fetch(poll))
+    Box::pin(sqlx::query_as::<_, models::Watcher>("SELECT * FROM watchers").fetch(pool))
 }

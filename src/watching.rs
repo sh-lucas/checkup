@@ -6,9 +6,9 @@ use sqlx::sqlite::Sqlite;
 /// spawns a new thread with an infinite loop
 /// pinging all watchers every interval seconds
 /// doesn't block or wait for them to complete.
-pub fn start_watching(poll: &Pool<Sqlite>, interval: u64) {
+pub fn start_watching(pool: &Pool<Sqlite>, interval: u64) {
     // needs to clone the atomic counter to avoid borrowing issues
-    let poll = poll.clone();
+    let pool = pool.clone();
 
     // runs on a separate task, indefinitely pinging all watchers
     tokio::spawn(async move {
@@ -17,8 +17,8 @@ pub fn start_watching(poll: &Pool<Sqlite>, interval: u64) {
 
         loop {
             ticker.tick().await;
-            let chan = stream_watchers_from(&poll);
-            ping_from_stream(chan, &poll).await;
+            let chan = stream_watchers_from(&pool);
+            ping_from_stream(chan, &pool).await;
         }
     });
 }
@@ -26,13 +26,13 @@ pub fn start_watching(poll: &Pool<Sqlite>, interval: u64) {
 /// starts another thread to lazy-fetch all watchers without blocking.
 /// returns the reciever channel to the caller.
 /// channels are basically iterators in Rust, so this is actually goated.
-pub fn stream_watchers_from(poll: &Pool<Sqlite>) -> async_channel::Receiver<models::Watcher> {
-    let poll = poll.clone();
+pub fn stream_watchers_from(pool: &Pool<Sqlite>) -> async_channel::Receiver<models::Watcher> {
+    let pool = pool.clone();
     let (tx, rx) = async_channel::bounded::<models::Watcher>(10);
 
     tokio::spawn(async move {
-        // Create the stream INSIDE the task using the owned `poll`
-        let mut stream = repositories::stream_all_watchers(&poll);
+        // Create the stream INSIDE the task using the owned `pool`
+        let mut stream = repositories::stream_all_watchers(&pool);
 
         while let Some(result) = stream.next().await {
             match result {
@@ -55,7 +55,7 @@ pub fn stream_watchers_from(poll: &Pool<Sqlite>) -> async_channel::Receiver<mode
 
 /// consumes an rx channel and pings all watchers.
 /// blocks until the last one.
-pub async fn ping_from_stream(rx: async_channel::Receiver<models::Watcher>, poll: &Pool<Sqlite>) {
+pub async fn ping_from_stream(rx: async_channel::Receiver<models::Watcher>, pool: &Pool<Sqlite>) {
     while let Ok(watcher) = rx.recv().await {
         let response = reqwest::get(&watcher.url).await;
 
@@ -68,7 +68,7 @@ pub async fn ping_from_stream(rx: async_channel::Receiver<models::Watcher>, poll
         };
 
         if status_code >= 400 {
-            let result = repositories::log_status_change(&poll, watcher.id, "offline").await;
+            let result = repositories::log_status_change(&pool, watcher.id, "offline").await;
 
             if let Err(e) = result {
                 eprintln!("Error logging status change: {}", e);
