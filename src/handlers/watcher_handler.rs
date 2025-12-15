@@ -10,8 +10,7 @@ use sqlx::{Pool, Sqlite};
 pub async fn add_watcher(watcher: Json<models::Watcher>, pool: Data<&Pool<Sqlite>>) -> String {
     let pool = pool.0;
 
-    let interval = watcher.interval as i64;
-    let result = repositories::create_watcher(&watcher.url, interval, pool).await;
+    let result = repositories::create_watcher(&watcher.url, pool).await;
 
     match result {
         Some(id) => format!("Watcher added with id: {}", id).to_string(),

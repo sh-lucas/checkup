@@ -1,18 +1,38 @@
-use crate::models;
+use crate::{models, repositories};
 use futures::StreamExt;
 use sqlx::pool::Pool;
 use sqlx::sqlite::Sqlite;
 
-// starts another thread to lazy-fetch all watchers without blocking.
-// returns the reciever channel to the caller.
+/// spawns a new thread with an infinite loop
+/// pinging all watchers every interval seconds
+/// doesn't block or wait for them to complete.
+pub fn start_watching(poll: &Pool<Sqlite>, interval: u64) {
+    // needs to clone the atomic counter to avoid borrowing issues
+    let poll = poll.clone();
+
+    // runs on a separate task, indefinitely pinging all watchers
+    tokio::spawn(async move {
+        let duration = std::time::Duration::from_secs(interval);
+        let mut ticker = tokio::time::interval(duration);
+
+        loop {
+            ticker.tick().await;
+            let chan = stream_watchers_from(&poll);
+            ping_from_stream(chan, &poll).await;
+        }
+    });
+}
+
+/// starts another thread to lazy-fetch all watchers without blocking.
+/// returns the reciever channel to the caller.
+/// channels are basically iterators in Rust, so this is actually goated.
 pub fn stream_watchers_from(poll: &Pool<Sqlite>) -> async_channel::Receiver<models::Watcher> {
     let poll = poll.clone();
     let (tx, rx) = async_channel::bounded::<models::Watcher>(10);
 
     tokio::spawn(async move {
         // Create the stream INSIDE the task using the owned `poll`
-        let mut stream =
-            sqlx::query_as::<_, models::Watcher>("SELECT * FROM watchers").fetch(&poll);
+        let mut stream = repositories::stream_all_watchers(&poll);
 
         while let Some(result) = stream.next().await {
             match result {
@@ -33,7 +53,8 @@ pub fn stream_watchers_from(poll: &Pool<Sqlite>) -> async_channel::Receiver<mode
     rx
 }
 
-// executes simple pings into the stream's watchers and inserts on poll.
+/// consumes an rx channel and pings all watchers.
+/// blocks until the last one.
 pub async fn ping_from_stream(rx: async_channel::Receiver<models::Watcher>, poll: &Pool<Sqlite>) {
     while let Ok(watcher) = rx.recv().await {
         let response = reqwest::get(&watcher.url).await;
@@ -47,18 +68,10 @@ pub async fn ping_from_stream(rx: async_channel::Receiver<models::Watcher>, poll
         };
 
         if status_code >= 400 {
-            let timestamp = chrono::Utc::now();
-            let inserted = sqlx::query!(
-                "INSERT INTO pings (watcher_id, status_code, timestamp) VALUES (?, ?, ?)",
-                watcher.id,
-                status_code,
-                timestamp,
-            )
-            .execute(poll)
-            .await;
+            let result = repositories::log_status_change(&poll, watcher.id, "offline").await;
 
-            if let Err(e) = inserted {
-                eprintln!("Error inserting ping: {}", e);
+            if let Err(e) = result {
+                eprintln!("Error logging status change: {}", e);
             }
         }
     }

@@ -15,20 +15,18 @@ mod watching;
 async fn main() -> Result<(), std::io::Error> {
     dotenv().ok();
 
-    let pool = database::setup_database().await;
+    let poll = database::setup_database().await;
 
     // web api server:
     let app = routes::with_routes(Route::new())
-        .with(AddData::new(pool.clone()))
+        .with(AddData::new(poll.clone()))
         .with(middlewares::BasicLog);
 
     let port = env::var("PORT").expect("PORT not set in environment variables.");
     let host = format!("0.0.0.0:{}", port);
     println!("Listening on http://{}", host);
 
-    // example of a watcher:
-    // watching::watch(&pool, 1).await;
-    watching::ping_from_stream(watching::stream_watchers_from(&pool), &pool).await;
+    watching::start_watching(&poll, 10);
 
     Server::new(TcpListener::bind(host)).run(app).await
 }

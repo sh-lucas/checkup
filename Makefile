@@ -7,7 +7,7 @@ run:
 # creates the database, altough sqlite pretty much does it automatically
 .PHONY: database
 database:
-	rm ./database.db || true
-	rm ./database.db-wal || true
+	rm ./database/database.db || true
+	rm ./database/database.db-wal || true
 	sqlx database create
 	sqlx migrate run
