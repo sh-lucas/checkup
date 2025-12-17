@@ -1,4 +1,5 @@
-mod pings_repository;
+mod watcher_handler;
 mod watcher_repository;
-pub use pings_repository::*;
+
+pub use watcher_handler::*;
 pub use watcher_repository::*;

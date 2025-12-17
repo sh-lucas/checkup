@@ -4,12 +4,9 @@ use dotenvy::dotenv;
 use poem::{EndpointExt, Route, Server, listener::TcpListener, middleware::AddData};
 
 mod database;
-mod handlers;
+mod features;
 mod middlewares;
-mod models;
-mod repositories;
 mod routes;
-mod watching;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
@@ -26,7 +23,7 @@ async fn main() -> Result<(), std::io::Error> {
     let host = format!("0.0.0.0:{}", port);
     println!("Listening on http://{}", host);
 
-    watching::start_watching(&pool, 10);
+    features::watching::start_watching(&pool, 10);
 
     Server::new(TcpListener::bind(host)).run(app).await
 }
