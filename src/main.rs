@@ -23,7 +23,7 @@ async fn main() -> Result<(), std::io::Error> {
     let host = format!("0.0.0.0:{}", port);
     println!("Listening on http://{}", host);
 
-    features::watching::start_watching(&pool, 10);
+    features::watchers::start_watching(&pool, 10);
 
     Server::new(TcpListener::bind(host)).run(app).await
 }
