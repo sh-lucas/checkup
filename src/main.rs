@@ -1,7 +1,8 @@
-use std::env;
+use std::{env, time::Duration};
 
 use dotenvy::dotenv;
 use poem::{EndpointExt, Route, Server, listener::TcpListener, middleware::AddData};
+use tokio::signal;
 
 mod database;
 mod features;
@@ -25,5 +26,40 @@ async fn main() -> Result<(), std::io::Error> {
 
     features::watchers::start_watching(&pool, 10);
 
-    Server::new(TcpListener::bind(host)).run(app).await
+    Server::new(TcpListener::bind(host))
+        .run_with_graceful_shutdown(app, shutdown_signal(), Some(Duration::from_secs(10)))
+        .await?;
+
+    println!("Server exiting.");
+    Ok(())
+}
+
+/// returns a future that resolves when a sigterm or ctrl+c is received.
+async fn shutdown_signal() {
+    // signal specifically for ctrl+c:
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    // signals for unix and non-unix (windows) systems:
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    // select the first signal to be received:
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    println!("\nSignal received, starting graceful shutdown...");
 }
