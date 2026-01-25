@@ -13,7 +13,7 @@ pub struct Watcher {
 
 // handler
 #[handler]
-pub async fn add_watcher(watcher: Json<Watcher>, pool: Data<&Pool<Sqlite>>) -> String {
+pub async fn post_watcher(watcher: Json<Watcher>, pool: Data<&Pool<Sqlite>>) -> String {
     let pool = pool.0;
 
     let result = super::create_watcher(&watcher.url, pool).await;

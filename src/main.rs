@@ -6,6 +6,7 @@ use tokio::signal;
 
 mod database;
 mod features;
+mod helpers;
 mod middlewares;
 mod routes;
 
