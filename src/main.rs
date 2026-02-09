@@ -1,3 +1,7 @@
+#![warn(clippy::all, clippy::pedantic)]
+#![deny(clippy::arithmetic_side_effects)]
+#![deny(clippy::unwrap_used)]
+
 use std::{env, time::Duration};
 
 use dotenvy::dotenv;
@@ -10,6 +14,7 @@ mod helpers;
 mod middlewares;
 mod routes;
 
+// all initializion and setup validation should happen on main
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     dotenv().ok();
@@ -22,8 +27,8 @@ async fn main() -> Result<(), std::io::Error> {
         .with(middlewares::BasicLog);
 
     let port = env::var("PORT").expect("PORT not set in environment variables.");
-    let host = format!("0.0.0.0:{}", port);
-    println!("Listening on http://{}", host);
+    let host = format!("0.0.0.0:{port}");
+    println!("Listening on http://{host}");
 
     features::watchers::start_watching(&pool, 10);
 
@@ -58,8 +63,8 @@ async fn shutdown_signal() {
 
     // select the first signal to be received:
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+        () = ctrl_c => {},
+        () = terminate => {},
     }
 
     println!("\nSignal received, starting graceful shutdown...");

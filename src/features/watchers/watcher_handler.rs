@@ -19,7 +19,7 @@ pub async fn post_watcher(watcher: Json<Watcher>, pool: Data<&Pool<Sqlite>>) -> 
     let result = super::create_watcher(&watcher.url, pool).await;
 
     match result {
-        Some(id) => format!("Watcher added with id: {}", id),
+        Some(id) => format!("Watcher added with id: {id}"),
         None => "Could not save new watcher".to_string(),
     }
 }

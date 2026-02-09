@@ -19,7 +19,6 @@ impl<E: Endpoint> Endpoint for BasicLogImpl<E> {
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         println!("[{}] {}", req.method(), req.uri());
-        let res = self.ep.call(req).await;
-        res
+        self.ep.call(req).await
     }
 }

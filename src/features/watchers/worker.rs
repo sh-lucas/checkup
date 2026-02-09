@@ -37,7 +37,7 @@ pub fn stream_watchers_from(pool: &Pool<Sqlite>) -> async_channel::Receiver<watc
         while let Some(result) = stream.next().await {
             match result {
                 Err(e) => {
-                    eprintln!("Error fetching watcher: {}", e);
+                    eprintln!("Error fetching watcher: {e}");
                     break;
                 }
                 Ok(watcher) => {
@@ -62,16 +62,16 @@ pub async fn ping_from_stream(rx: async_channel::Receiver<watchers::Watcher>, po
         let status_code = match response {
             Ok(resp) => resp.status().as_u16(),
             Err(e) => {
-                eprintln!("Falha de conexão: {}", e);
+                eprintln!("Falha de conexão: {e}");
                 599
             }
         };
 
         if status_code >= 400 {
-            let result = pings::log_status_change(&pool, watcher.id, "offline").await;
+            let result = pings::log_status_change(pool, watcher.id, "offline").await;
 
             if let Err(e) = result {
-                eprintln!("Error logging status change: {}", e);
+                eprintln!("Error logging status change: {e}");
             }
         }
     }
