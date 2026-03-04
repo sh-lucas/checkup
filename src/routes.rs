@@ -17,6 +17,6 @@ struct Healthz {
 #[handler]
 fn healthz() -> Json<Healthz> {
     Json(Healthz {
-        message: "server online.".to_string(),
+        message: "server online".to_string(),
     })
 }

@@ -11,6 +11,8 @@ use crate::features::users::user_repository;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct User {
     pub username: String,
+
+    #[serde(rename = "password")]
     pub passhash: String,
 }
 
