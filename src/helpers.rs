@@ -5,3 +5,10 @@ pub fn is_unique_err(err: &sqlx::Error) -> bool {
         .as_deref()
         == Some("2067")
 }
+
+#[macro_export]
+macro_rules! ok_json {
+    ($($json:tt)+) => {
+        Ok(serde_json::json!($($json)+).to_string())
+    };
+}

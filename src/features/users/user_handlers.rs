@@ -6,7 +6,10 @@ use poem::{
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
-use crate::features::users::user_repository;
+use crate::{
+    features::users::{jwt, user_repository},
+    ok_json,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct User {
@@ -22,11 +25,19 @@ pub async fn post_user(user: Json<User>, pool: Data<&Pool<Sqlite>>) -> Result<St
 
     let result = user_repository::create_user(pool, &user).await;
 
-    match result {
-        Ok(()) => Ok("User created".to_string()),
-        Err(e) => Err(poem::Error::from_string(
-            e.to_string(),
+    let Ok(user_id) = result else {
+        let err = result.expect_err("Impossible condition");
+        return Err(poem::Error::from_string(
+            err.to_string(),
             http::StatusCode::BAD_REQUEST,
-        )),
-    }
+        ));
+    };
+
+    let refresh_token = jwt::gen_auth_token(user_id, jwt::TokenType::Refresh, 7 * 24);
+    let access_token = jwt::gen_auth_token(user_id, jwt::TokenType::Refresh, 8);
+
+    ok_json!({
+        "refresh_token": refresh_token,
+        "access_token": access_token
+    })
 }
