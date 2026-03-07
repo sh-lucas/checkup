@@ -2,7 +2,10 @@
 # most commands around here are useful during development or to understand rust
 
 run:
-	cargo run
+	bacon run
+
+test:
+	cargo test
 
 # creates the database, altough sqlite pretty much does it automatically
 .PHONY: database
