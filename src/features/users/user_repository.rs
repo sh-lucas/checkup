@@ -1,10 +1,19 @@
 use poem::http;
+use serde::Serialize;
 use sqlx::{Pool, Sqlite};
 
 use crate::{features::users::User, helpers};
 
+#[derive(Debug, thiserror::Error)]
+pub enum ServerErrors {
+    #[error("user already exists")]
+    ConflictError,
+    #[error("internal error")]
+    InternalError,
+}
+
 /// `create_user` adds a user to the database, returnin `poem::Error` or on failure
-pub async fn create_user(pool: &Pool<Sqlite>, user: &User) -> Result<i64, poem::Error> {
+pub async fn create_user(pool: &Pool<Sqlite>, user: &User) -> Result<i64, ServerErrors> {
     let result = sqlx::query!(
         "INSERT INTO users (username, passhash) VALUES (?, ?) RETURNING id",
         user.username,
@@ -17,15 +26,9 @@ pub async fn create_user(pool: &Pool<Sqlite>, user: &User) -> Result<i64, poem::
         Ok(record) => Ok(record.id),
         Err(e) => {
             if helpers::is_unique_err(&e) {
-                return Err(poem::Error::from_string(
-                    "Username already exists",
-                    http::StatusCode::CONFLICT,
-                ));
+                return Err(ServerErrors::ConflictError);
             }
-            Err(poem::Error::from_string(
-                e.to_string(),
-                http::StatusCode::INTERNAL_SERVER_ERROR,
-            ))
+            Err(ServerErrors::InternalError)
         }
     }
 }
