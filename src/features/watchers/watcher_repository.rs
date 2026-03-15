@@ -19,6 +19,17 @@ pub async fn create_watcher(url: &str, pool: &Pool<Sqlite>) -> Option<i64> {
     }
 }
 
+pub async fn list_watchers_by_user(pool: &Pool<Sqlite>) -> Result<Vec<Watcher>, Error> {
+    let result = sqlx::query_as!(Watcher, "SELECT * FROM watchers")
+        .fetch_all(pool)
+        .await;
+
+    match result {
+        Ok(watchers) => Ok(watchers),
+        Err(e) => Err(e),
+    }
+}
+
 pub fn stream_all_watchers<'a>(
     pool: &'a Pool<Sqlite>,
 ) -> Pin<Box<dyn Stream<Item = Result<Watcher, Error>> + Send + 'a>> {

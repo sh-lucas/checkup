@@ -16,12 +16,12 @@ PRAGMA foreign_keys=OFF;
 
 CREATE TABLE new_watchers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT,
-    createdBy INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE
+    url TEXT NOT NULL,
+    created_by INTEGER NOT NULL DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Copia apenas os dados existentes (id, url) e define o admin (id 1) como criador
-INSERT INTO new_watchers (id, url, createdBy)
+INSERT INTO new_watchers (id, url, created_by)
     SELECT id, url, 1 FROM watchers;
 
 DROP TABLE watchers;

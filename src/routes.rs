@@ -6,8 +6,12 @@ use crate::features::watchers;
 
 pub fn with_routes(app: Route) -> Route {
     app.at("/", get(healthz))
+        // watchers
         .at("/watchers/create", post(watchers::post_watcher))
+        .at("/watchers/list", get(watchers::get_my_watchers))
+        // users
         .at("/users/create", post(users::post_user))
+        // pings
         .at("/pings", get(pings::get_down_pings))
 }
 
