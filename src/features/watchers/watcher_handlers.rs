@@ -40,7 +40,7 @@ pub async fn get_my_watchers(
 ) -> Result<String, poem::Error> {
     let pool = pool.0;
 
-    let claims = parse_auth_token(auth_token)?;
+    let claims = parse_auth_token(&auth_token)?;
 
     let result = watcher_repository::list_watchers_by_user(pool, claims.sub).await;
 

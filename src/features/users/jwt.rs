@@ -47,7 +47,7 @@ pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64) -> St
     .expect("Could not generate token")
 }
 
-pub fn parse_auth_token(auth: Authorization<Bearer>) -> Result<Claims, poem::Error> {
+pub fn parse_auth_token(auth: &Authorization<Bearer>) -> Result<Claims, poem::Error> {
     let token = auth.token();
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET has to be defined");
