@@ -1,5 +1,8 @@
 use super::Watcher;
 use futures::Stream;
+use poem::web::TypedHeader;
+use poem::web::headers::Authorization;
+use poem::web::headers::authorization::Bearer;
 use sqlx::Error;
 use sqlx::{Pool, Sqlite};
 use std::pin::Pin;
@@ -19,10 +22,17 @@ pub async fn create_watcher(url: &str, pool: &Pool<Sqlite>) -> Option<i64> {
     }
 }
 
-pub async fn list_watchers_by_user(pool: &Pool<Sqlite>) -> Result<Vec<Watcher>, Error> {
-    let result = sqlx::query_as!(Watcher, "SELECT * FROM watchers")
-        .fetch_all(pool)
-        .await;
+pub async fn list_watchers_by_user(
+    pool: &Pool<Sqlite>,
+    user_id: i64,
+) -> Result<Vec<Watcher>, Error> {
+    let result = sqlx::query_as!(
+        Watcher,
+        "SELECT * FROM watchers WHERE created_by = ?",
+        user_id
+    )
+    .fetch_all(pool)
+    .await;
 
     match result {
         Ok(watchers) => Ok(watchers),

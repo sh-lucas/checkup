@@ -1,6 +1,10 @@
 use std::env;
 
-use jsonwebtoken::{EncodingKey, Header, encode};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use poem::{
+    http,
+    web::headers::{Authorization, authorization::Bearer},
+};
 use serde::{Deserialize, Serialize};
 
 /// This is crazy: enums for values in a systems programming language
@@ -12,13 +16,13 @@ pub enum TokenType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims {
+pub struct Claims {
     /// `user_id`
-    sub: i64,
+    pub sub: i64,
     /// expiration timestamp
-    exp: chrono::DateTime<chrono::Utc>,
+    pub exp: chrono::DateTime<chrono::Utc>,
     /// token type
-    aud: TokenType,
+    pub aud: TokenType,
 }
 
 pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64) -> String {
@@ -41,4 +45,24 @@ pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64) -> St
         &EncodingKey::from_secret(secret.as_ref()),
     )
     .expect("Could not generate token")
+}
+
+pub fn parse_auth_token(auth: Authorization<Bearer>) -> Result<Claims, poem::Error> {
+    let token = auth.token();
+
+    let secret = env::var("JWT_SECRET").expect("JWT_SECRET has to be defined");
+
+    let result = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &Validation::default(),
+    );
+
+    match result {
+        Ok(decoded) => Ok(decoded.claims),
+        Err(e) => Err(poem::Error::from_string(
+            e.to_string(),
+            http::StatusCode::UNAUTHORIZED,
+        )),
+    }
 }

@@ -1,10 +1,16 @@
 use poem::{
     handler, http,
-    web::{Data, Json},
+    web::{
+        Data, Json, TypedHeader,
+        headers::{Authorization, authorization::Bearer},
+    },
 };
 use sqlx::{Pool, Sqlite};
 
-use crate::features::watchers::watcher_repository;
+use crate::{
+    features::{users::jwt::parse_auth_token, watchers::watcher_repository},
+    ok_json,
+};
 
 // model
 #[derive(Debug, serde::Deserialize, serde::Serialize, sqlx::FromRow)]
@@ -28,13 +34,18 @@ pub async fn post_watcher(watcher: Json<Watcher>, pool: Data<&Pool<Sqlite>>) -> 
 }
 
 #[handler]
-pub async fn get_my_watchers(pool: Data<&Pool<Sqlite>>) -> Result<String, poem::Error> {
+pub async fn get_my_watchers(
+    pool: Data<&Pool<Sqlite>>,
+    TypedHeader(auth_token): TypedHeader<Authorization<Bearer>>,
+) -> Result<String, poem::Error> {
     let pool = pool.0;
 
-    let result = watcher_repository::list_watchers_by_user(pool).await;
+    let claims = parse_auth_token(auth_token)?;
+
+    let result = watcher_repository::list_watchers_by_user(pool, claims.sub).await;
 
     match result {
-        Ok(watchers) => Ok(format!("Watchers: {watchers:?}")),
+        Ok(watchers) => ok_json!({ "watchers": watchers }),
         Err(e) => Err(poem::Error::from_string(
             e.to_string(),
             http::StatusCode::INTERNAL_SERVER_ERROR,
