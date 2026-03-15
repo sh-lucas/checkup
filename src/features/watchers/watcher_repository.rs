@@ -1,8 +1,5 @@
 use super::Watcher;
 use futures::Stream;
-use poem::web::TypedHeader;
-use poem::web::headers::Authorization;
-use poem::web::headers::authorization::Bearer;
 use sqlx::Error;
 use sqlx::{Pool, Sqlite};
 use std::pin::Pin;
