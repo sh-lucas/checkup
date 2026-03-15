@@ -1,6 +1,4 @@
-use std::error;
-
-use chrono::{self, DateTime, NaiveDateTime, Utc};
+use chrono::{self, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 

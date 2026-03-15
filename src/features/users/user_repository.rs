@@ -1,5 +1,3 @@
-use poem::http;
-use serde::Serialize;
 use sqlx::{Pool, Sqlite};
 
 use crate::{features::users::User, helpers};

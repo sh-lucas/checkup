@@ -1,7 +1,4 @@
-use poem::{
-    http,
-    web::{Data, Json},
-};
+use poem::{http, web::Data};
 use sqlx::{Pool, Sqlite};
 
 use crate::{features::pings::pings_repository, ok_json};
