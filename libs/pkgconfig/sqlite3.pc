@@ -1,0 +1,12 @@
+prefix=/home/sh-lucas/Github/checkup/libs
+exec_prefix=${prefix}
+libdir=${prefix}
+includedir=/usr/include
+
+Name: SQLite
+Description: Turso Database (Limbo) - SQLite compatible static library
+Version: 3.42.0
+
+Libs: -L${libdir} -lsqlite3
+Libs.private: -lm -lz -ldl -lpthread
+Cflags: -I${includedir}

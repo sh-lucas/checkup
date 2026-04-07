@@ -1,0 +1,13 @@
+[env]
+# Aponta libsqlite3-sys para a cdylib do Turso (Limbo) ao invés do SQLite original.
+# Headers do sistema (libsqlite3-dev) para o bindgen; link efetivo usa libs/libsqlite3.so
+# que é um symlink para turso/target/release/libturso_sqlite3.so.
+# Rebuide o turso com `cargo build -p turso_sqlite3 --release` para atualizar.
+SQLITE3_LIB_DIR = { value = "libs", relative = true }
+SQLITE3_INCLUDE_DIR = "/usr/include"
+
+[build]
+# Adiciona rpath para que o binário ache libs/libsqlite3.so em runtime.
+# $ORIGIN aponta para o dir do binário (target/debug/ ou target/release/),
+# e ../../libs sobe 2 níveis até a raiz do projeto.
+rustflags = ["-C", "link-arg=-Wl,-rpath,$ORIGIN/../../libs"]

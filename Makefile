@@ -14,3 +14,9 @@ database:
 	rm ./database/database.db-wal || true
 	sqlx database create
 	sqlx migrate run
+
+
+# rebuilds turso from tree
+sqlite3:
+# you shall clone turso into /turso for this =)
+	cd turso && cargo build --release -p turso_sqlite3
