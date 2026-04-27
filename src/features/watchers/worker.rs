@@ -68,7 +68,8 @@ pub async fn ping_from_stream(rx: async_channel::Receiver<watchers::Watcher>, po
         };
 
         if status_code >= 400 {
-            let result = pings::log_status_change(pool, watcher.id, "offline").await;
+            let result =
+                pings::log_status_change(pool, watcher.id, status_code, "offline").await;
 
             if let Err(e) = result {
                 eprintln!("Error logging status change: {e}");

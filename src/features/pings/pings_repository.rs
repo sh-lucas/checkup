@@ -19,10 +19,13 @@ pub enum PingsErrors {
     InternalError,
 }
 
-/// logs a status change if it's different from the latest log
+/// logs a status change if it's different from the latest log.
+/// `status_code` is the HTTP status (e.g. 200, 404, 503),
+/// `status` is "online" or "offline".
 pub async fn log_status_change(
     pool: &Pool<Sqlite>,
     watcher_id: i64,
+    status_code: u16,
     status: &str,
 ) -> Result<(), sqlx::Error> {
     let now = chrono::Utc::now();
@@ -31,21 +34,22 @@ pub async fn log_status_change(
         "SELECT status FROM pings WHERE watcher_id = ? ORDER BY timestamp DESC LIMIT 1",
         watcher_id
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?;
 
-    if latest_log.status == status {
-        return Ok(());
+    // no previous entry or status differs → insert new one
+    if latest_log.is_none() || latest_log.unwrap().status != status {
+        let code = i64::from(status_code);
+        sqlx::query!(
+            "INSERT INTO pings (watcher_id, status_code, status, timestamp) VALUES (?, ?, ?, ?)",
+            watcher_id,
+            code,
+            status,
+            now,
+        )
+        .execute(pool)
+        .await?;
     }
-
-    sqlx::query!(
-        "INSERT INTO pings (watcher_id, status_code, timestamp) VALUES (?, ?, ?)",
-        watcher_id,
-        status,
-        now,
-    )
-    .execute(pool)
-    .await?;
 
     Ok(())
 }
