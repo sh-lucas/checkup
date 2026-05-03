@@ -30,3 +30,14 @@ pub async fn create_user(pool: &Pool<Sqlite>, user: &User) -> Result<i64, Server
         }
     }
 }
+
+pub async fn get_all_users(pool: &Pool<Sqlite>) -> Result<Vec<User>, ServerErrors> {
+    let result = sqlx::query_as!(User, "SELECT id, username, passhash FROM users")
+        .fetch_all(pool)
+        .await;
+
+    match result {
+        Ok(users) => Ok(users),
+        Err(_e) => Err(ServerErrors::InternalError),
+    }
+}

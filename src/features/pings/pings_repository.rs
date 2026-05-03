@@ -38,7 +38,12 @@ pub async fn log_status_change(
     .await?;
 
     // no previous entry or status differs → insert new one
-    if latest_log.is_none() || latest_log.unwrap().status != status {
+    if latest_log.is_none()
+        || latest_log
+            .expect("No previous entry or status differs")
+            .status
+            != status
+    {
         let code = i64::from(status_code);
         sqlx::query!(
             "INSERT INTO pings (watcher_id, status_code, status, timestamp) VALUES (?, ?, ?, ?)",

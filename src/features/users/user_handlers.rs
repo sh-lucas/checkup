@@ -13,6 +13,7 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct User {
+    pub id: Option<i64>,
     pub username: String,
 
     #[serde(rename = "password")]
