@@ -14,47 +14,42 @@ MODE="${1:-rust}"
 
 mkdir -p "$BENCH/results"
 
-# seed: just insert data (migrations already ran)
-seed() {
-  sqlite3 "$DB" < "$BENCH/seed.sql"
+wait_ready() {
+  local i=0
+  until curl -sf "http://localhost:$PORT/" >/dev/null 2>&1; do
+    sleep 0.5; i=$((i+1))
+    [[ $i -lt 30 ]] || { echo "server did not start" >&2; exit 1; }
+  done
 }
 
-wait_ready() {
-  for _ in $(seq 40); do
-    curl -sf "http://localhost:$PORT/" >/dev/null 2>&1 && return
-    sleep 0.3
-  done
-  echo "server did not start" >&2; exit 1
+# Boot server so it runs sqlx migrations, then kill and seed.
+setup_db() {
+  local cmd=("$@")
+  # kill anything already on this port
+  fuser -k "${PORT}/tcp" 2>/dev/null || true
+  sleep 0.3
+  rm -f "$DB" "$DB-wal" "$DB-shm"
+  DATABASE_URL="sqlite:///$DB" PORT=$PORT "${cmd[@]}" &
+  local mpid=$!
+  wait_ready
+  kill "$mpid"; wait "$mpid" 2>/dev/null || true
+  sqlite3 "$DB" "PRAGMA wal_checkpoint(FULL);" >/dev/null
+  sqlite3 "$DB" < "$BENCH/seed.sql"
+  echo "  DB ready."
 }
 
 if [[ "$MODE" == "rust" ]]; then
   echo "Building..."
   cargo build --release --manifest-path "$REPO/Cargo.toml" -q
-
-  echo "Migrating + seeding..."
-  rm -f "$DB" "$DB-wal" "$DB-shm"
-  DATABASE_URL="sqlite:///$DB" PORT=$PORT "$REPO/target/release/checkup" &
-  PID=$!
-  wait_ready
-  kill $PID; wait $PID 2>/dev/null; sleep 0.3
-  seed
-
+  BIN="$REPO/target/release/checkup"
+  setup_db "$BIN"
   echo "Starting server..."
-  DATABASE_URL="sqlite:///$DB" PORT=$PORT \
-    taskset -c 0 "$REPO/target/release/checkup" &
+  DATABASE_URL="sqlite:///$DB" PORT=$PORT taskset -c 0 "$BIN" &
   PID=$!
 
 elif [[ "$MODE" == "bun" ]]; then
   LABEL="bun"
-  echo "Migrating + seeding..."
-  rm -f "$DB" "$DB-wal" "$DB-shm"
-  DATABASE_URL="sqlite:///$DB" PORT=$PORT \
-    bun run "$BENCH/bun-server/index.ts" &
-  PID=$!
-  wait_ready
-  kill $PID; wait $PID 2>/dev/null; sleep 0.3
-  seed
-
+  setup_db bun run "$BENCH/bun-server/index.ts"
   echo "Starting bun server..."
   DATABASE_URL="sqlite:///$DB" PORT=$PORT \
     taskset -c 0 bun run "$BENCH/bun-server/index.ts" &
@@ -70,5 +65,5 @@ BASE_URL="http://localhost:$PORT" k6 run \
   --out "json=$BENCH/results/$LABEL.json" \
   "$BENCH/bench.js"
 
-kill $PID 2>/dev/null; wait $PID 2>/dev/null
+kill $PID 2>/dev/null; wait $PID 2>/dev/null || true
 echo "Done. Results: bench/results/$LABEL.json"
