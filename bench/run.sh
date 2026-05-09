@@ -14,9 +14,8 @@ MODE="${1:-rust}"
 
 mkdir -p "$BENCH/results"
 
-# seed: wipe db and populate
+# seed: just insert data (migrations already ran)
 seed() {
-  rm -f "$DB" "$DB-wal" "$DB-shm"
   sqlite3 "$DB" < "$BENCH/seed.sql"
 }
 
@@ -33,7 +32,7 @@ if [[ "$MODE" == "rust" ]]; then
   cargo build --release --manifest-path "$REPO/Cargo.toml" -q
 
   echo "Migrating + seeding..."
-  # boot once so sqlx runs migrations, then kill
+  rm -f "$DB" "$DB-wal" "$DB-shm"
   DATABASE_URL="sqlite:///$DB" PORT=$PORT "$REPO/target/release/checkup" &
   PID=$!
   wait_ready
@@ -48,6 +47,7 @@ if [[ "$MODE" == "rust" ]]; then
 elif [[ "$MODE" == "bun" ]]; then
   LABEL="bun"
   echo "Migrating + seeding..."
+  rm -f "$DB" "$DB-wal" "$DB-shm"
   DATABASE_URL="sqlite:///$DB" PORT=$PORT \
     bun run "$BENCH/bun-server/index.ts" &
   PID=$!
