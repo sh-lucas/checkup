@@ -1,6 +1,6 @@
 use std::env;
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 pub async fn setup_database() -> sqlx::SqlitePool {
     let db_uri = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -10,7 +10,9 @@ pub async fn setup_database() -> sqlx::SqlitePool {
         .expect("Invalid DATABASE_URL")
         .create_if_missing(true)
         .journal_mode(SqliteJournalMode::Wal)
-        .pragma("cache_size", "-5000")
+        .synchronous(SqliteSynchronous::Normal)
+        .pragma("cache_size", "-20000")
+        .pragma("temp_store", "MEMORY")
         .pragma("busy_timeout", "5000");
 
     let pool = SqlitePoolOptions::new()

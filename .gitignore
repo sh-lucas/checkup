@@ -4,3 +4,4 @@
 /database
 /local_tests
 /turso
+bench/*
