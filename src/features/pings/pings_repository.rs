@@ -1,12 +1,6 @@
 use sqlx::{Pool, Sqlite};
 
-use crate::features::pings::Ping;
-
-#[derive(Debug, thiserror::Error)]
-pub enum PingsErrors {
-    #[error("internal error")]
-    InternalError,
-}
+use crate::features::pings::{Ping, PingsError};
 
 /// logs a status change if it's different from the latest log
 pub async fn log_status_change(
@@ -42,7 +36,7 @@ pub async fn log_status_change(
 pub async fn get_status_changes(
     pool: &Pool<Sqlite>,
     watcher_id: i64,
-) -> Result<Vec<Ping>, PingsErrors> {
+) -> Result<Vec<Ping>, PingsError> {
     let result = sqlx::query_as!(
         Ping,
         "SELECT id, watcher_id, timestamp, status_code, status FROM pings WHERE watcher_id = ?",
@@ -53,6 +47,6 @@ pub async fn get_status_changes(
 
     match result {
         Ok(pings) => Ok(pings),
-        Err(_e) => Err(PingsErrors::InternalError),
+        Err(e) => Err(PingsError::Database(e)),
     }
 }
