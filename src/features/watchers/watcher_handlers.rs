@@ -77,8 +77,8 @@ impl WatchersApi {
         let pool = pool.0;
 
         let token = auth_header.0.trim();
-        let token = if token.starts_with("Bearer ") {
-            &token[7..]
+        let token = if let Some(stripped) = token.strip_prefix("Bearer ") {
+            stripped
         } else {
             token
         };
