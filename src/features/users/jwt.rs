@@ -1,10 +1,7 @@
 use std::env;
 
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use poem::{
-    http,
-    web::headers::{Authorization, authorization::Bearer},
-};
+use poem::http;
 use serde::{Deserialize, Serialize};
 
 /// This is crazy: enums for values in a systems programming language
@@ -47,9 +44,7 @@ pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64) -> St
     .expect("Could not generate token")
 }
 
-pub fn parse_auth_token(auth: &Authorization<Bearer>) -> Result<Claims, poem::Error> {
-    let token = auth.token();
-
+pub fn parse_auth_token(token: &str) -> Result<Claims, poem::Error> {
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET has to be defined");
 
     let result = decode::<Claims>(

@@ -1,17 +1,6 @@
-use chrono::{self, NaiveDateTime};
-use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Ping {
-    pub id: i64,
-    pub watcher_id: i64,
-    pub timestamp: NaiveDateTime,
-    /// 200 | 404 | 500 | etc
-    pub status_code: i64,
-    /// "online" | "offline"
-    pub status: String,
-}
+use crate::features::pings::Ping;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PingsErrors {

@@ -1,43 +1,59 @@
-use poem::{
-    handler,
-    http::{self},
-    web::{Data, Json},
-};
+use poem::web::Data;
+use poem_openapi::{ApiResponse, Object, OpenApi, payload::Json};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
-use crate::{
-    features::users::{jwt, user_repository},
-    ok_json,
-};
+use crate::features::users::{jwt, user_repository};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Object)]
 pub struct User {
     pub username: String,
 
-    #[serde(rename = "password")]
-    pub passhash: String,
+    // #[serde(rename = "password")]
+    // #[oai(rename = "password")]
+    pub password: String,
 }
 
-#[handler]
-pub async fn post_user(user: Json<User>, pool: Data<&Pool<Sqlite>>) -> Result<String, poem::Error> {
-    let pool = pool.0;
+#[derive(Serialize, Deserialize, Object)]
+pub struct UserAuthTokens {
+    pub refresh_token: String,
+    pub access_token: String,
+}
 
-    let result = user_repository::create_user(pool, &user).await;
+#[derive(ApiResponse)]
+pub enum CreateUserResponse {
+    #[oai(status = 201)]
+    Ok(Json<UserAuthTokens>),
 
-    let Ok(user_id) = result else {
-        let err = result.expect_err("Impossible condition");
-        return Err(poem::Error::from_string(
-            err.to_string(),
-            http::StatusCode::BAD_REQUEST,
-        ));
-    };
+    #[oai(status = 500)]
+    InternalError(Json<String>),
+}
 
-    let refresh_token = jwt::gen_auth_token(user_id, jwt::TokenType::Refresh, 7 * 24);
-    let access_token = jwt::gen_auth_token(user_id, jwt::TokenType::Refresh, 8);
+pub struct UserApi;
 
-    ok_json!({
-        "refresh_token": refresh_token,
-        "access_token": access_token
-    })
+#[OpenApi]
+impl UserApi {
+    #[oai(path = "/users/create", method = "post")]
+    pub async fn create_user(
+        &self,
+        pool: Data<&Pool<Sqlite>>,
+        user: Json<User>,
+    ) -> CreateUserResponse {
+        let pool = pool.0;
+
+        let result = user_repository::create_user(pool, &user.0).await;
+
+        let Ok(user_id) = result else {
+            let err = result.expect_err("Impossible condition");
+            return CreateUserResponse::InternalError(Json(err.to_string()));
+        };
+
+        let refresh_token = jwt::gen_auth_token(user_id, jwt::TokenType::Refresh, 7 * 24);
+        let access_token = jwt::gen_auth_token(user_id, jwt::TokenType::Refresh, 8);
+
+        CreateUserResponse::Ok(Json(UserAuthTokens {
+            refresh_token,
+            access_token,
+        }))
+    }
 }

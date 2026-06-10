@@ -4,6 +4,7 @@ use sqlx::{Pool, Sqlite};
 
 use crate::features::users::{User, user_handlers};
 use poem::{EndpointExt, test::TestClient};
+use poem_openapi::OpenApiService;
 
 #[sqlx::test]
 async fn test_create_user(pool: Pool<Sqlite>) {
@@ -11,14 +12,13 @@ async fn test_create_user(pool: Pool<Sqlite>) {
 
     let user = User {
         username: "john doe".to_string(),
-        passhash: "password".to_string(),
+        password: "password".to_string(),
     };
 
-    let app = poem::Route::new()
-        .at("/users", poem::post(user_handlers::post_user))
+    let app = OpenApiService::new(user_handlers::UserApi, "User API", "1.0")
         .with(poem::middleware::AddData::new(pool));
     let cli = TestClient::new(app);
 
-    let resp = cli.post("/users").body_json(&user).send().await;
-    resp.assert_status_is_ok();
+    let resp = cli.post("/users/create").body_json(&user).send().await;
+    resp.assert_status(poem::http::StatusCode::CREATED);
 }

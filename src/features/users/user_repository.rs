@@ -15,7 +15,7 @@ pub async fn create_user(pool: &Pool<Sqlite>, user: &User) -> Result<i64, Server
     let result = sqlx::query!(
         "INSERT INTO users (username, passhash) VALUES (?, ?) RETURNING id",
         user.username,
-        user.passhash
+        user.password
     )
     .fetch_one(pool)
     .await;
