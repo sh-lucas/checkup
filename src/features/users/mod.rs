@@ -16,13 +16,28 @@ pub enum UserError {
     
     #[error("internal database error")]
     Database(#[from] sqlx::Error),
+
+    #[error("password error: {0}")]
+    Password(String),
 }
 
 // 2. Domain Model
-#[derive(Serialize, Deserialize, Debug, Object)]
+#[derive(Serialize, Deserialize, Debug, sqlx::FromRow, Object)]
 pub struct User {
+    #[oai(read_only)]
+    pub id: Option<i64>,
+
     pub username: String,
-    pub password: String,
+
+    #[sqlx(default)]
+    #[oai(write_only)]
+    #[serde(skip_serializing)]
+    pub password: Option<String>,
+
+    #[sqlx(default)]
+    #[oai(skip)]
+    #[serde(skip)]
+    pub passhash: Option<String>,
 }
 
 // 3. API Structs
@@ -39,6 +54,9 @@ pub enum CreateUserResponse {
 
     #[oai(status = 409)]
     Conflict(Json<String>),
+
+    #[oai(status = 400)]
+    BadRequest(Json<String>),
 
     #[oai(status = 500)]
     InternalError(Json<String>),

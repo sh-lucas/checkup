@@ -24,7 +24,7 @@ pub struct Claims {
 
 pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64) -> String {
     let refresh_expiration = chrono::Utc::now()
-        .checked_add_days(chrono::Days::new(exp_hours))
+        .checked_add_signed(chrono::Duration::hours(exp_hours.cast_signed()))
         .expect("Invalid expiration time");
 
     let claims = Claims {
