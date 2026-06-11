@@ -14,11 +14,24 @@ pub fn start_watching(pool: &Pool<Sqlite>, interval: u64) {
     tokio::spawn(async move {
         let duration = std::time::Duration::from_secs(interval);
         let mut ticker = tokio::time::interval(duration);
+        let num_workers = 5;
 
         loop {
             ticker.tick().await;
-            let chan = stream_watchers_from(&pool);
-            ping_from_stream(chan, &pool).await;
+            let rx = stream_watchers_from(&pool);
+
+            let mut worker_handles = vec![];
+            for _ in 0..num_workers {
+                let rx_clone = rx.clone();
+                let pool_clone = pool.clone();
+                worker_handles.push(tokio::spawn(async move {
+                    ping_from_stream(rx_clone, &pool_clone).await;
+                }));
+            }
+
+            for handle in worker_handles {
+                let _ = handle.await;
+            }
         }
     });
 }
@@ -67,12 +80,16 @@ pub async fn ping_from_stream(rx: async_channel::Receiver<watchers::Watcher>, po
             }
         };
 
-        if status_code >= 400 {
-            let result = pings::log_status_change(pool, watcher.id, "offline").await;
+        let status = if status_code < 400 {
+            "online"
+        } else {
+            "offline"
+        };
+        let result =
+            pings::log_status_change(pool, watcher.id, i64::from(status_code), status).await;
 
-            if let Err(e) = result {
-                eprintln!("Error logging status change: {e}");
-            }
+        if let Err(e) = result {
+            eprintln!("Error logging status change: {e}");
         }
     }
 }

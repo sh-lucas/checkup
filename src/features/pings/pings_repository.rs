@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use sqlx::{Pool, Sqlite};
 
 use crate::features::pings::{Ping, PingsError};
@@ -6,6 +7,7 @@ use crate::features::pings::{Ping, PingsError};
 pub async fn log_status_change(
     pool: &Pool<Sqlite>,
     watcher_id: i64,
+    status_code: i64,
     status: &str,
 ) -> Result<(), sqlx::Error> {
     let now = chrono::Utc::now();
@@ -14,16 +16,19 @@ pub async fn log_status_change(
         "SELECT status FROM pings WHERE watcher_id = ? ORDER BY timestamp DESC LIMIT 1",
         watcher_id
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?;
 
-    if latest_log.status == status {
+    if let Some(log) = latest_log
+        && log.status == status
+    {
         return Ok(());
     }
 
     sqlx::query!(
-        "INSERT INTO pings (watcher_id, status_code, timestamp) VALUES (?, ?, ?)",
+        "INSERT INTO pings (watcher_id, status_code, status, timestamp) VALUES (?, ?, ?, ?)",
         watcher_id,
+        status_code,
         status,
         now,
     )
@@ -39,7 +44,7 @@ pub async fn get_status_changes(
 ) -> Result<Vec<Ping>, PingsError> {
     let result = sqlx::query_as!(
         Ping,
-        "SELECT id, watcher_id, timestamp, status_code, status FROM pings WHERE watcher_id = ?",
+        "SELECT id, watcher_id, timestamp as \"timestamp: NaiveDateTime\", status_code, status FROM pings WHERE watcher_id = ?",
         watcher_id
     )
     .fetch_all(pool)
