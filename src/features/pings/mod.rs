@@ -5,18 +5,11 @@ pub use pings_repository::log_status_change;
 
 use chrono::NaiveDateTime;
 use poem::web::Data;
-use poem_openapi::{ApiResponse, Object, OpenApi, payload::Json};
+use poem_openapi::{Object, OpenApi, payload::Json};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
-// 1. Error Enum for the feature
-#[derive(Debug, thiserror::Error)]
-pub enum PingsError {
-    #[error("internal database error: {0}")]
-    Database(#[from] sqlx::Error),
-}
-
-// 2. Domain Model
+// 1. Domain Model
 #[derive(Debug, Serialize, Deserialize, Object)]
 pub struct Ping {
     pub id: i64,
@@ -28,14 +21,15 @@ pub struct Ping {
     pub status: String,
 }
 
-// 3. API Response Structs
-#[derive(ApiResponse)]
-pub enum GetPingsResponse {
-    #[oai(status = 200)]
-    Ok(Json<Vec<Ping>>),
+// 2. API Response Structs
+crate::api_response! {
+    pub enum GetPingsResponse {
+        #[oai(status = 200)]
+        Ok(Json<Vec<Ping>>),
 
-    #[oai(status = 500)]
-    InternalError(Json<String>),
+        #[oai(status = 500)]
+        InternalError(Json<String>),
+    }
 }
 
 // 4. OpenAPI routing / delegation

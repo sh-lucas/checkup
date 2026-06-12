@@ -12,3 +12,25 @@ macro_rules! ok_json {
         Ok(serde_json::json!($($json)+).to_string())
     };
 }
+
+#[macro_export]
+macro_rules! api_response {
+    (
+        $(#[$outer:meta])*
+        pub enum $name:ident {
+            $(
+                #[oai(status = $status:literal)]
+                $variant:ident $( ( $payload:ty ) )?,
+            )*
+        }
+    ) => {
+        #[derive(poem_openapi::ApiResponse)]
+        $(#[$outer])*
+        pub enum $name {
+            $(
+                #[oai(status = $status)]
+                $variant $( ( $payload ) )?,
+            )*
+        }
+    };
+}

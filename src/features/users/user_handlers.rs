@@ -1,33 +1,42 @@
 use sqlx::{Pool, Sqlite};
 use poem_openapi::payload::Json;
 
-use crate::features::users::{jwt, user_repository};
-use super::{CreateUserResponse, User, UserAuthTokens, UserError};
+use crate::features::users::jwt;
+use super::{CreateUserRequest, CreateUserResponse, UserAuthTokens};
 
 pub async fn create_user(
     pool: &Pool<Sqlite>,
-    user: User,
+    user: CreateUserRequest,
 ) -> CreateUserResponse {
-    let result = user_repository::create_user(pool, &user).await;
+    let passhash = match bcrypt::hash(&user.password, bcrypt::DEFAULT_COST) {
+        Ok(hash) => hash,
+        Err(e) => return CreateUserResponse::BadRequest(Json(e.to_string())),
+    };
+
+    let result = sqlx::query!(
+        "INSERT INTO users (username, passhash) VALUES (?, ?) RETURNING id",
+        user.username,
+        passhash
+    )
+    .fetch_one(pool)
+    .await;
 
     match result {
-        Ok(user_id) => {
-            let refresh_token = jwt::gen_auth_token(user_id, jwt::TokenType::Refresh, 7 * 24);
-            let access_token = jwt::gen_auth_token(user_id, jwt::TokenType::Access, 8);
+        Ok(record) => {
+            let refresh_token = jwt::gen_auth_token(record.id, jwt::TokenType::Refresh, 7 * 24);
+            let access_token = jwt::gen_auth_token(record.id, jwt::TokenType::Access, 8);
 
             CreateUserResponse::Ok(Json(UserAuthTokens {
                 refresh_token,
                 access_token,
             }))
         }
-        Err(UserError::Conflict) => {
-            CreateUserResponse::Conflict(Json("User already exists".to_string()))
-        }
-        Err(UserError::Password(e)) => {
-            CreateUserResponse::BadRequest(Json(e))
-        }
         Err(e) => {
-            CreateUserResponse::InternalError(Json(e.to_string()))
+            if crate::helpers::is_unique_err(&e) {
+                CreateUserResponse::Conflict(Json("User already exists".to_string()))
+            } else {
+                CreateUserResponse::InternalError(Json(e.to_string()))
+            }
         }
     }
 }

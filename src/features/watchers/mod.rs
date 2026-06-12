@@ -6,18 +6,11 @@ pub use worker::*;
 pub use watcher_repository::stream_all_watchers;
 
 use poem::web::Data;
-use poem_openapi::{param::Header, payload::Json, ApiResponse, Object, OpenApi};
+use poem_openapi::{param::Header, payload::Json, Object, OpenApi};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
-// 1. Error Enum for the feature
-#[derive(Debug, thiserror::Error)]
-pub enum WatcherError {
-    #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
-}
-
-// 2. Domain Model
+// 1. Domain Model
 #[derive(Debug, serde::Deserialize, serde::Serialize, sqlx::FromRow, Object)]
 pub struct Watcher {
     pub id: i64,
@@ -25,19 +18,20 @@ pub struct Watcher {
     pub created_by: i64,
 }
 
-// 3. API Request/Response Structs
+// 2. API Request/Response Structs
 #[derive(Debug, serde::Deserialize, Object)]
 pub struct CreateWatcherRequest {
     pub url: String,
 }
 
-#[derive(ApiResponse)]
-pub enum CreateWatcherResponse {
-    #[oai(status = 201)]
-    Created(Json<String>),
+crate::api_response! {
+    pub enum CreateWatcherResponse {
+        #[oai(status = 201)]
+        Created(Json<String>),
 
-    #[oai(status = 500)]
-    InternalError(Json<String>),
+        #[oai(status = 500)]
+        InternalError(Json<String>),
+    }
 }
 
 #[derive(Serialize, Deserialize, Object)]
@@ -45,19 +39,20 @@ pub struct GetWatchersResult {
     pub watchers: Vec<Watcher>,
 }
 
-#[derive(ApiResponse)]
-pub enum GetWatchersResponse {
-    #[oai(status = 200)]
-    Ok(Json<GetWatchersResult>),
+crate::api_response! {
+    pub enum GetWatchersResponse {
+        #[oai(status = 200)]
+        Ok(Json<GetWatchersResult>),
 
-    #[oai(status = 401)]
-    Unauthorized(Json<String>),
+        #[oai(status = 401)]
+        Unauthorized(Json<String>),
 
-    #[oai(status = 500)]
-    InternalError(Json<String>),
+        #[oai(status = 500)]
+        InternalError(Json<String>),
+    }
 }
 
-// 4. OpenAPI routing / delegation
+// 3. OpenAPI routing / delegation
 pub struct WatchersApi;
 
 #[OpenApi]

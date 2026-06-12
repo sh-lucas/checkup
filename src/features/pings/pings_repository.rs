@@ -1,7 +1,4 @@
-use chrono::NaiveDateTime;
 use sqlx::{Pool, Sqlite};
-
-use crate::features::pings::{Ping, PingsError};
 
 /// logs a status change if it's different from the latest log
 pub async fn log_status_change(
@@ -36,22 +33,4 @@ pub async fn log_status_change(
     .await?;
 
     Ok(())
-}
-
-pub async fn get_status_changes(
-    pool: &Pool<Sqlite>,
-    watcher_id: i64,
-) -> Result<Vec<Ping>, PingsError> {
-    let result = sqlx::query_as!(
-        Ping,
-        "SELECT id, watcher_id, timestamp as \"timestamp: NaiveDateTime\", status_code, status FROM pings WHERE watcher_id = ?",
-        watcher_id
-    )
-    .fetch_all(pool)
-    .await;
-
-    match result {
-        Ok(pings) => Ok(pings),
-        Err(e) => Err(PingsError::Database(e)),
-    }
 }

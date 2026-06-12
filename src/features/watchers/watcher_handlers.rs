@@ -1,21 +1,26 @@
 use sqlx::{Pool, Sqlite};
 use poem_openapi::payload::Json;
 
-use crate::features::{users::jwt::parse_auth_token, watchers::watcher_repository};
-use super::{CreateWatcherRequest, CreateWatcherResponse, GetWatchersResponse, GetWatchersResult};
+use crate::features::users::jwt::parse_auth_token;
+use super::{CreateWatcherRequest, CreateWatcherResponse, GetWatchersResponse, GetWatchersResult, Watcher};
 
 pub async fn post_watcher(
     pool: &Pool<Sqlite>,
     watcher: CreateWatcherRequest,
 ) -> CreateWatcherResponse {
-    let result = watcher_repository::create_watcher(&watcher.url, pool).await;
+    let result = sqlx::query!(
+        "INSERT INTO watchers (url) VALUES (?) RETURNING id",
+        watcher.url
+    )
+    .fetch_one(pool)
+    .await;
 
     match result {
-        Ok(id) => {
-            CreateWatcherResponse::Created(Json(format!("Watcher added with id: {id}")))
+        Ok(record) => {
+            CreateWatcherResponse::Created(Json(format!("Watcher added with id: {}", record.id)))
         }
-        Err(_) => {
-            CreateWatcherResponse::InternalError(Json("Could not save new watcher".to_string()))
+        Err(e) => {
+            CreateWatcherResponse::InternalError(Json(e.to_string()))
         }
     }
 }
@@ -36,7 +41,13 @@ pub async fn get_my_watchers(
         return GetWatchersResponse::Unauthorized(Json("Invalid token".to_string()));
     };
 
-    let result = watcher_repository::list_watchers_by_user(pool, claims.sub).await;
+    let result = sqlx::query_as!(
+        Watcher,
+        "SELECT id, url, created_by FROM watchers WHERE created_by = ?",
+        claims.sub
+    )
+    .fetch_all(pool)
+    .await;
 
     match result {
         Ok(watchers) => GetWatchersResponse::Ok(Json(GetWatchersResult { watchers })),
