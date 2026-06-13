@@ -7,13 +7,6 @@ pub fn is_unique_err(err: &sqlx::Error) -> bool {
 }
 
 #[macro_export]
-macro_rules! ok_json {
-    ($($json:tt)+) => {
-        Ok(serde_json::json!($($json)+).to_string())
-    };
-}
-
-#[macro_export]
 macro_rules! api_response {
     (
         $(#[$outer:meta])*

@@ -1,14 +1,11 @@
 mod watcher_handlers;
-mod watcher_repository;
-mod worker;
-
-pub use worker::*;
-pub use watcher_repository::stream_all_watchers;
 
 use poem::web::Data;
-use poem_openapi::{param::Header, payload::Json, Object, OpenApi};
+use poem_openapi::{Object, OpenApi, payload::Json};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
+
+use crate::auth::AuthClaims;
 
 // 1. Domain Model
 #[derive(Debug, serde::Deserialize, serde::Serialize, sqlx::FromRow, Object)]
@@ -44,9 +41,6 @@ crate::api_response! {
         #[oai(status = 200)]
         Ok(Json<GetWatchersResult>),
 
-        #[oai(status = 401)]
-        Unauthorized(Json<String>),
-
         #[oai(status = 500)]
         InternalError(Json<String>),
     }
@@ -57,21 +51,24 @@ pub struct WatchersApi;
 
 #[OpenApi]
 impl WatchersApi {
+    /// Register a new watcher owned by the authenticated user.
     #[oai(path = "/watchers/create", method = "post")]
     pub async fn post_watcher(
         &self,
         pool: Data<&Pool<Sqlite>>,
         watcher: Json<CreateWatcherRequest>,
+        claims: AuthClaims,
     ) -> CreateWatcherResponse {
-        watcher_handlers::post_watcher(pool.0, watcher.0).await
+        watcher_handlers::post_watcher(pool.0, watcher.0, &claims).await
     }
 
+    /// List watchers owned by the authenticated user.
     #[oai(path = "/watchers/list", method = "get")]
     pub async fn get_my_watchers(
         &self,
         pool: Data<&Pool<Sqlite>>,
-        #[oai(name = "Authorization")] auth_header: Header<String>,
+        claims: AuthClaims,
     ) -> GetWatchersResponse {
-        watcher_handlers::get_my_watchers(pool.0, auth_header.0).await
+        watcher_handlers::get_my_watchers(pool.0, &claims).await
     }
 }

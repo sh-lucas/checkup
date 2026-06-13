@@ -1,4 +1,3 @@
-pub mod jwt;
 mod user_handlers;
 mod user_tests;
 
@@ -14,6 +13,9 @@ pub struct CreateUserRequest {
     pub password: String,
 }
 
+/// Response DTO. Distinct from the DB row so a `passhash` can never leak.
+/// Reserved for upcoming `get me` / `list users` endpoints.
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug, Object)]
 pub struct User {
     pub id: i64,

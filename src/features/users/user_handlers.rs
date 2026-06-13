@@ -1,7 +1,7 @@
 use sqlx::{Pool, Sqlite};
 use poem_openapi::payload::Json;
 
-use crate::features::users::jwt;
+use crate::auth::{self, TokenType};
 use super::{CreateUserRequest, CreateUserResponse, UserAuthTokens};
 
 pub async fn create_user(
@@ -14,7 +14,7 @@ pub async fn create_user(
     };
 
     let result = sqlx::query!(
-        "INSERT INTO users (username, passhash) VALUES (?, ?) RETURNING id",
+        "INSERT INTO users (username, passhash) VALUES (?, ?) RETURNING id as \"id!: i64\"",
         user.username,
         passhash
     )
@@ -23,8 +23,8 @@ pub async fn create_user(
 
     match result {
         Ok(record) => {
-            let refresh_token = jwt::gen_auth_token(record.id, jwt::TokenType::Refresh, 7 * 24);
-            let access_token = jwt::gen_auth_token(record.id, jwt::TokenType::Access, 8);
+            let refresh_token = auth::gen_auth_token(record.id, TokenType::Refresh, 7 * 24);
+            let access_token = auth::gen_auth_token(record.id, TokenType::Access, 8);
 
             CreateUserResponse::Ok(Json(UserAuthTokens {
                 refresh_token,

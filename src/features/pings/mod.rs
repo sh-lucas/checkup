@@ -5,7 +5,7 @@ pub use pings_repository::log_status_change;
 
 use chrono::NaiveDateTime;
 use poem::web::Data;
-use poem_openapi::{Object, OpenApi, payload::Json};
+use poem_openapi::{Object, OpenApi, param::Query, payload::Json};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
@@ -37,9 +37,13 @@ pub struct PingsApi;
 
 #[OpenApi]
 impl PingsApi {
-    /// Get pings for specified watcher and time range
+    /// List ping records where the target watcher is offline.
     #[oai(path = "/pings/down", method = "get")]
-    pub async fn get_down_pings(&self, pool: Data<&Pool<Sqlite>>) -> GetPingsResponse {
-        pings_handlers::get_down_pings(pool.0).await
+    pub async fn get_down_pings(
+        &self,
+        pool: Data<&Pool<Sqlite>>,
+        #[oai(name = "watcher_id")] watcher_id: Query<Option<i64>>,
+    ) -> GetPingsResponse {
+        pings_handlers::get_down_pings(pool.0, watcher_id.0).await
     }
 }
