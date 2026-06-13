@@ -1,3 +1,7 @@
+#![warn(clippy::all, clippy::pedantic)]
+#![deny(clippy::arithmetic_side_effects)]
+#![deny(clippy::unwrap_used)]
+
 use std::time::Duration;
 
 use dotenvy::dotenv;
