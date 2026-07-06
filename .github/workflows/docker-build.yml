@@ -31,6 +31,7 @@ jobs:
       - name: Login to Registry
         run: |
           podman login localhost:5000 \
+            --tls-verify=false \
             -u "${{ secrets.REGISTRY_USER }}" \
             -p "${{ secrets.REGISTRY_PASSWORD }}"
 
@@ -40,5 +41,6 @@ jobs:
 
       - name: Push Image to Registry
         run: |
-          podman push localhost:5000/checkup:latest
+          podman push --tls-verify=false localhost:5000/checkup:latest
+
 
