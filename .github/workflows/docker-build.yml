@@ -15,23 +15,30 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure Cloudflare mTLS Certificates
+      - name: Install cloudflared
         run: |
-          mkdir -p ~/.config/containers/certs.d/registry.sh-lucas.dev
-          echo "${{ secrets.CF_REGISTRY_ID }}" > ~/.config/containers/certs.d/registry.sh-lucas.dev/client.cert
-          echo "${{ secrets.CF_REGISTRY_SECRET }}" > ~/.config/containers/certs.d/registry.sh-lucas.dev/client.key
-          chmod 600 ~/.config/containers/certs.d/registry.sh-lucas.dev/client.key
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then CLOUDFLARED_ARCH="amd64"; else CLOUDFLARED_ARCH="arm64"; fi
+          sudo curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CLOUDFLARED_ARCH} -o /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+
+      - name: Start Cloudflared Access Proxy
+        run: |
+          cloudflared access tcp --hostname registry.sh-lucas.dev --url localhost:5000 --id "${{ secrets.CF_REGISTRY_ID }}" --secret "${{ secrets.CF_REGISTRY_SECRET }}" &
+          # Give it a moment to establish the proxy connection
+          sleep 3
 
       - name: Login to Registry
         run: |
-          podman login registry.sh-lucas.dev \
+          podman login localhost:5000 \
             -u "${{ secrets.REGISTRY_USER }}" \
             -p "${{ secrets.REGISTRY_PASSWORD }}"
 
       - name: Build Image with Podman
         run: |
-          podman build -t registry.sh-lucas.dev/checkup:latest .
+          podman build -t localhost:5000/checkup:latest .
 
       - name: Push Image to Registry
         run: |
-          podman push registry.sh-lucas.dev/checkup:latest
+          podman push localhost:5000/checkup:latest
+
