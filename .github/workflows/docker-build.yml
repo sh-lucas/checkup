@@ -15,32 +15,28 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install cloudflared
-        run: |
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "x86_64" ]; then CLOUDFLARED_ARCH="amd64"; else CLOUDFLARED_ARCH="arm64"; fi
-          sudo curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CLOUDFLARED_ARCH} -o /usr/local/bin/cloudflared
-          sudo chmod +x /usr/local/bin/cloudflared
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT }}
+          oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
+          tags: tag:gh-runner
 
-      - name: Start Cloudflared Access Proxy
+      - name: Route registry.sh-lucas.dev through Tailscale IP
         run: |
-          cloudflared access tcp --hostname registry.sh-lucas.dev --url localhost:5000 --id "${{ secrets.CF_REGISTRY_ID }}" --secret "${{ secrets.CF_REGISTRY_SECRET }}" &
-          # Give it a moment to establish the proxy connection
-          sleep 3
+          echo "${{ secrets.TAILSCALE_REGISTRY_IP }} registry.sh-lucas.dev" | sudo tee -a /etc/hosts
 
       - name: Login to Registry
         run: |
-          podman login localhost:5000 \
+          podman login registry.sh-lucas.dev \
             --tls-verify=false \
             -u "${{ secrets.REGISTRY_USER }}" \
             -p "${{ secrets.REGISTRY_PASSWORD }}"
 
       - name: Build Image with Podman
         run: |
-          podman build -t localhost:5000/checkup:latest .
+          podman build -t registry.sh-lucas.dev/checkup:latest .
 
       - name: Push Image to Registry
         run: |
-          podman push --tls-verify=false localhost:5000/checkup:latest
-
-
+          podman push --tls-verify=false registry.sh-lucas.dev/checkup:latest
