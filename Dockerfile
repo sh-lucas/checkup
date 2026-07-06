@@ -1,10 +1,10 @@
 # Stage 1: Build
-FROM rust:1.81-slim AS builder
+FROM rust:1.81-alpine AS builder
 
 WORKDIR /usr/src/checkup
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y pkg-config libssl-dev gcc sqlite3 && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache musl-dev gcc sqlite sqlite-dev build-base
 
 # Leverage Docker cache mounts for cargo registries and the target directory.
 # We also create a dummy sqlite database from the migrations to satisfy SQLx compile-time query verification.
@@ -21,10 +21,10 @@ RUN --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     cp target/release/checkup /usr/src/checkup/checkup
 
 # Stage 2: Final minimal image
-FROM debian:bookworm-slim
+FROM alpine:3.20
 
 # Install SSL certificates for outbound pings/HTTPS requests
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
