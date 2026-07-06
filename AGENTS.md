@@ -15,6 +15,7 @@ Splitting domain and data access layer is ok, but the source of truth should alw
   - `<feature>_handlers.rs`: a single flat file containing all database operations and handlers logic.
 - **Cross-feature infrastructure lives at the crate root**: anything that is not really a "feature" (auth, background workers, config) goes in `src/<module>.rs`, not inside `src/features/`. A worker that happens to read `Watcher` rows is not part of the `watchers` feature — it's runtime.
 
+
 ## Code style and preferences
 
 - Avoid unecessary comments, left-over documentations and useless tests.  
