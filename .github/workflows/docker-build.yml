@@ -1,0 +1,37 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Push ARM64 Image
+    runs-on: ubuntu-24.04-arm64
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure Cloudflare mTLS Certificates
+        run: |
+          mkdir -p ~/.config/containers/certs.d/registry.sh-lucas.dev
+          echo "${{ secrets.CF_REGISTRY_ID }}" > ~/.config/containers/certs.d/registry.sh-lucas.dev/client.cert
+          echo "${{ secrets.CF_REGISTRY_SECRET }}" > ~/.config/containers/certs.d/registry.sh-lucas.dev/client.key
+          chmod 600 ~/.config/containers/certs.d/registry.sh-lucas.dev/client.key
+
+      - name: Login to Registry
+        run: |
+          podman login registry.sh-lucas.dev \
+            -u "${{ secrets.REGISTRY_USER }}" \
+            -p "${{ secrets.REGISTRY_PASSWORD }}"
+
+      - name: Build Image with Podman
+        run: |
+          podman build -t registry.sh-lucas.dev/checkup:latest .
+
+      - name: Push Image to Registry
+        run: |
+          podman push registry.sh-lucas.dev/checkup:latest
