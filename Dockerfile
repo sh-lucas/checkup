@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM rust:1.81-alpine AS builder
+FROM rust:1.85-alpine AS builder
 
 WORKDIR /usr/src/checkup
 
