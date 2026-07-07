@@ -28,11 +28,11 @@ async fn main() -> Result<(), std::io::Error> {
 
     let pool = database::setup_database(&config.database_url).await;
 
-    let stats_cache = std::sync::Arc::new(features::stats::StatsCache::new());
+    let metrics_cache = std::sync::Arc::new(features::metrics::MetricsCache::new());
 
-    let app = routes::with_routes(Route::new(), stats_cache.clone())
+    let app = routes::with_routes(Route::new(), metrics_cache.clone())
         .with(AddData::new(pool.clone()))
-        .with(AddData::new(stats_cache.clone()))
+        .with(AddData::new(metrics_cache.clone()))
         .with(middlewares::BasicLog);
 
     let host = format!("0.0.0.0:{}", config.port);
@@ -42,7 +42,7 @@ async fn main() -> Result<(), std::io::Error> {
         &pool,
         config.ping_interval_secs,
         config.num_ping_workers,
-        stats_cache,
+        metrics_cache,
     );
 
     Server::new(TcpListener::bind(host))

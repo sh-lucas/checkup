@@ -1,8 +1,8 @@
+use super::{MetricsCache, MetricsResponse};
+use crate::features::pings::{self, PingRecord};
+use sqlx::{Pool, Sqlite};
 use std::ffi::CString;
 use std::mem::MaybeUninit;
-use sqlx::{Pool, Sqlite};
-use super::StatsCache;
-use crate::features::pings::{self, PingRecord};
 
 #[derive(Default)]
 struct CpuTicks {
@@ -28,7 +28,7 @@ fn get_cpu_ticks() -> Option<CpuTicks> {
     let irq: u64 = parts.get(5)?.parse().ok()?;
     let softirq: u64 = parts.get(6)?.parse().ok()?;
     let steal: u64 = parts.get(7)?.parse().ok()?;
-    
+
     let idle_ticks = idle.checked_add(iowait)?;
     let non_idle_ticks = user
         .checked_add(nice)?
@@ -37,7 +37,7 @@ fn get_cpu_ticks() -> Option<CpuTicks> {
         .checked_add(softirq)?
         .checked_add(steal)?;
     let total_ticks = idle_ticks.checked_add(non_idle_ticks)?;
-    
+
     let mut cores: usize = 0;
     for line in lines {
         if line.starts_with("cpu") && !line.starts_with("cpu ") {
@@ -47,7 +47,7 @@ fn get_cpu_ticks() -> Option<CpuTicks> {
     if cores == 0 {
         cores = 1;
     }
-    
+
     Some(CpuTicks {
         total: total_ticks,
         idle: idle_ticks,
@@ -104,9 +104,10 @@ fn get_disk_usage() -> Option<f64> {
 async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
     let Ok(watchers) = sqlx::query!("SELECT id FROM watchers")
         .fetch_all(pool)
-        .await else {
-            return 100.0;
-        };
+        .await
+    else {
+        return 100.0;
+    };
 
     if watchers.is_empty() {
         return 100.0;
@@ -131,7 +132,7 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
 
     for w in &watchers {
         let w_pings: Vec<&PingRecord> = pings.iter().filter(|p| p.watcher_id == w.id).collect();
-        
+
         let mut offline_secs = 0.0;
         let mut current_state = "online";
         let mut last_time = start_time;
@@ -172,47 +173,50 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
 
 // Struct to keep previous ticks for calculation across updates
 #[derive(Default)]
-pub struct StatsState {
+pub struct MetricsState {
     prev_ticks: Option<CpuTicks>,
 }
 
 #[allow(clippy::cast_precision_loss)]
-pub async fn update_stats(pool: &Pool<Sqlite>, stats_cache: &StatsCache, state: &mut StatsState) {
+pub async fn update_metrics(
+    pool: &Pool<Sqlite>,
+    metrics_cache: &MetricsCache,
+    state: &mut MetricsState,
+) {
     let load_avg = get_load_avg().unwrap_or(0.0);
     let memory_percent = get_memory_percent().unwrap_or(0.0);
     let disk_percent = get_disk_usage().unwrap_or(0.0);
-    
+
     let mut cpu_percent = 0.0;
     let mut cpu_usage = 0.0;
     let mut io_percent = 0.0;
-    
+
     let current_ticks = get_cpu_ticks();
     if let (Some(prev), Some(curr)) = (&state.prev_ticks, &current_ticks) {
         let diff_total = curr.total.saturating_sub(prev.total);
         let diff_idle = curr.idle.saturating_sub(prev.idle);
         let diff_iowait = curr.iowait.saturating_sub(prev.iowait);
-        
+
         if diff_total > 0 {
-            cpu_percent = ((diff_total.saturating_sub(diff_idle)) as f64 / diff_total as f64) * 100.0;
+            cpu_percent =
+                ((diff_total.saturating_sub(diff_idle)) as f64 / diff_total as f64) * 100.0;
             cpu_usage = cpu_percent * curr.cores as f64;
             io_percent = (diff_iowait as f64 / diff_total as f64) * 100.0;
         }
     }
     state.prev_ticks = current_ticks;
-    
+
     let uptime_percent = calculate_uptime(pool).await;
-    
-    let stats_data = serde_json::json!({
-        "uptime_percent": uptime_percent,
-        "load_avg": load_avg,
-        "memory_percent": memory_percent,
-        "cpu_percent": cpu_percent,
-        "cpu_usage": cpu_usage,
-        "io_percent": io_percent,
-        "disk_percent": disk_percent
-    });
-    
-    if let Ok(payload_str) = serde_json::to_string(&stats_data) {
-        stats_cache.set_payload(payload_str);
-    }
+
+    let metrics = MetricsResponse {
+        uptime_percent,
+        load_avg,
+        memory_percent,
+        cpu_percent,
+        cpu_usage,
+        io_percent,
+        disk_percent,
+    };
+
+    metrics_cache.set_payload(metrics);
 }

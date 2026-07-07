@@ -1,10 +1,10 @@
+use crate::features::metrics::{self, MetricsCache, MetricsState};
 use crate::features::{pings, watchers};
-use crate::features::stats::{self, StatsCache, StatsState};
 use futures::StreamExt;
 use sqlx::pool::Pool;
 use sqlx::sqlite::Sqlite;
-use tokio::task::JoinHandle;
 use std::sync::Arc;
+use tokio::task::JoinHandle;
 
 /// Spawns the background ping loop. Pings every watcher once per `interval`
 /// seconds using `num_workers` concurrent tasks. The returned handle lets
@@ -13,7 +13,7 @@ pub fn start_watching(
     pool: &Pool<Sqlite>,
     interval_secs: u64,
     num_workers: usize,
-    stats_cache: Arc<StatsCache>,
+    metrics_cache: Arc<MetricsCache>,
 ) -> JoinHandle<()> {
     let pool = pool.clone();
 
@@ -49,16 +49,16 @@ pub fn start_watching(
         }
     });
 
-    // Spawn stats updater task
-    let stats_pool = pool.clone();
+    // Spawn metrics updater task
+    let metrics_pool = pool.clone();
     tokio::spawn(async move {
-        // Run once every 10 seconds
-        let mut stats_ticker = tokio::time::interval(std::time::Duration::from_secs(10));
-        let mut state = StatsState::default();
-        
+        // Run once every 2 seconds
+        let mut metrics_ticker = tokio::time::interval(std::time::Duration::from_secs(2));
+        let mut state = MetricsState::default();
+
         loop {
-            stats_ticker.tick().await;
-            stats::update_stats(&stats_pool, &stats_cache, &mut state).await;
+            metrics_ticker.tick().await;
+            metrics::update_metrics(&metrics_pool, &metrics_cache, &mut state).await;
         }
     });
 
