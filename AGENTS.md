@@ -21,3 +21,4 @@ Splitting domain and data access layer is ok, but the source of truth should alw
 - Avoid unecessary comments, left-over documentations and useless tests.  
 - Prefer integration tests; test feature-wide, not serde's desserialization or sqlx mappings. The type system already enforces it.  
 - Avoid writting numeric or pretty comments. Follow rust standard doc style and keep it simple.   
+- Use Poem's OpenAPI handler format with explicit errors and responses when viable (or if not explicitly asked otherwise). Avoid generic response types, but if the code becomes too verbose, adopt macros or propose alternatives (even generic types are fine then). The goal is clarity and maintainability.
