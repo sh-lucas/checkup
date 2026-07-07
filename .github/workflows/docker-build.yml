@@ -32,10 +32,23 @@ jobs:
             -u "${{ secrets.REGISTRY_USER }}" \
             -p "${{ secrets.REGISTRY_PASSWORD }}"
 
+      - name: Generate Image Tag
+        id: prep
+        run: |
+          DATE=$(date +'%Y.%m.%d')
+          RUN_NUM=$(printf "%03d" "${{ github.run_number }}")
+          COMMIT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          TAG="${DATE}--${RUN_NUM}--${COMMIT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
       - name: Build Image with Podman
         run: |
-          podman build -t registry.sh-lucas.dev/checkup:latest .
+          podman build \
+            -t registry.sh-lucas.dev/checkup:${{ steps.prep.outputs.tag }} \
+            -t registry.sh-lucas.dev/checkup:latest \
+            .
 
       - name: Push Image to Registry
         run: |
+          podman push registry.sh-lucas.dev/checkup:${{ steps.prep.outputs.tag }}
           podman push registry.sh-lucas.dev/checkup:latest
