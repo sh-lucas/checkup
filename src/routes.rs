@@ -1,4 +1,4 @@
-use poem::{Route, get, handler, web::Json};
+use poem::{Route, get, handler, web::Json, EndpointExt, middleware::Cors};
 use poem_openapi::OpenApiService;
 use std::sync::Arc;
 
@@ -21,7 +21,7 @@ pub fn with_routes(app: Route, _metrics_cache: Arc<MetricsCache>) -> Route {
     let redoc_ui = api_service.redoc();
 
     app.at("/", get(healthz))
-        .nest("/api", api_service)
+        .nest("/api", api_service.with(Cors::new()))
         .nest("/docs", swagger_ui)
         .nest("/redoc", redoc_ui)
 }
@@ -91,5 +91,33 @@ mod tests {
         let chunk_str = String::from_utf8(first_chunk.to_vec()).unwrap();
         assert!(chunk_str.contains("data:"));
         assert!(chunk_str.contains(r#""uptime_percent":100"#));
+    }
+
+    #[tokio::test]
+    async fn test_cors_headers() {
+        let metrics_cache = Arc::new(MetricsCache::new());
+        let app = with_routes(Route::new(), metrics_cache.clone())
+            .with(poem::middleware::AddData::new(metrics_cache));
+
+        let cli = TestClient::new(app);
+
+        // 1. Regular GET request with Origin should get Access-Control-Allow-Origin back
+        let resp = cli
+            .get("/api/metrics")
+            .header("origin", "https://sh-lucas.dev")
+            .send()
+            .await;
+        resp.assert_status(poem::http::StatusCode::OK);
+        resp.assert_header("access-control-allow-origin", "https://sh-lucas.dev");
+
+        // 2. Preflight OPTIONS request should succeed and return CORS headers
+        let resp = cli
+            .options("/api/metrics")
+            .header("origin", "https://example.com")
+            .header("access-control-request-method", "GET")
+            .send()
+            .await;
+        resp.assert_status(poem::http::StatusCode::OK);
+        resp.assert_header("access-control-allow-origin", "https://example.com");
     }
 }
