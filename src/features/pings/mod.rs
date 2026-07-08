@@ -1,7 +1,7 @@
 mod pings_handlers;
 mod pings_repository;
 
-pub use pings_repository::{log_status_change, get_pings_since, PingRecord};
+pub use pings_repository::{log_ping, get_pings_since, PingRecord};
 
 use chrono::NaiveDateTime;
 use poem::web::Data;

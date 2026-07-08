@@ -123,47 +123,43 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
         return 100.0;
     };
 
-    let total_window_secs = match now.signed_duration_since(start_time).num_seconds() {
-        s if s > 0 => s as f64,
-        _ => return 100.0,
-    };
-
     let mut total_offline_secs = 0.0;
+    let mut total_possible_secs = 0.0;
 
     for w in &watchers {
         let w_pings: Vec<&PingRecord> = pings.iter().filter(|p| p.watcher_id == w.id).collect();
 
+        let w_start_time = w_pings.first().map(|p| p.timestamp).unwrap_or(now);
+        let w_possible = now.signed_duration_since(w_start_time).num_seconds().max(0) as f64;
+        total_possible_secs += w_possible;
+
         let mut offline_secs = 0.0;
         let mut current_state = "online";
-        let mut last_time = start_time;
+        let mut last_time = w_start_time;
 
-        if !w_pings.is_empty() {
-            if w_pings[0].status == "offline" {
-                current_state = "online";
-            } else {
-                current_state = "offline";
-            }
+        for p in &w_pings {
+            let p_time = p.timestamp;
+            let diff_secs = p_time.signed_duration_since(last_time).num_seconds().max(0) as f64;
 
-            for p in &w_pings {
-                let p_time = p.timestamp;
-                let diff_secs = p_time.signed_duration_since(last_time).num_seconds().max(0) as f64;
-                if current_state == "offline" {
-                    offline_secs += diff_secs;
-                }
-                current_state = &p.status;
-                last_time = p_time;
+            if diff_secs > 300.0 {
+                offline_secs += diff_secs;
+            } else if current_state == "offline" {
+                offline_secs += diff_secs;
             }
+            current_state = &p.status;
+            last_time = p_time;
         }
 
         let final_secs = now.signed_duration_since(last_time).num_seconds().max(0) as f64;
-        if current_state == "offline" {
+        if final_secs > 300.0 {
+            offline_secs += final_secs;
+        } else if current_state == "offline" {
             offline_secs += final_secs;
         }
 
         total_offline_secs += offline_secs;
     }
 
-    let total_possible_secs = total_window_secs * watchers.len() as f64;
     if total_possible_secs <= 0.0 {
         return 100.0;
     }
@@ -219,4 +215,73 @@ pub async fn update_metrics(
     };
 
     metrics_cache.set_payload(metrics);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[sqlx::test]
+    async fn test_calculate_uptime_scenarios(pool: Pool<Sqlite>) {
+        let res = sqlx::query!("INSERT INTO watchers (url) VALUES ('https://test-watcher.com')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        let watcher_id = res.last_insert_rowid();
+
+        let now = Utc::now().naive_utc();
+
+        // Scenario A: No pings at all -> uptime is 100.0%
+        let uptime = calculate_uptime(&pool).await;
+        assert_eq!(uptime, 100.0);
+
+        // Scenario B: Monitored for 2 hours, all pings online (no gaps > 5min)
+        for i in 0..=120 {
+            let ts = now - chrono::Duration::minutes(120 - i);
+            sqlx::query!(
+                "INSERT INTO pings (watcher_id, status_code, status, timestamp) VALUES (?, 200, 'online', ?)",
+                watcher_id,
+                ts
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        let uptime = calculate_uptime(&pool).await;
+        assert!(uptime > 99.9 && uptime <= 100.0);
+
+        // Scenario C: Introduce a 10-minute offline period
+        let start_offline = now - chrono::Duration::minutes(60);
+        let end_offline = now - chrono::Duration::minutes(50);
+        sqlx::query!(
+            "UPDATE pings SET status = 'offline', status_code = 500 WHERE timestamp >= ? AND timestamp <= ? AND watcher_id = ?",
+            start_offline,
+            end_offline,
+            watcher_id
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let uptime = calculate_uptime(&pool).await;
+        assert!(uptime > 90.8 && uptime < 90.9);
+
+        // Scenario D: Introduce a 20-minute gap (unmonitored/down)
+        let start_gap = now - chrono::Duration::minutes(40);
+        let end_gap = now - chrono::Duration::minutes(20);
+        sqlx::query!(
+            "DELETE FROM pings WHERE timestamp >= ? AND timestamp <= ? AND watcher_id = ?",
+            start_gap,
+            end_gap,
+            watcher_id
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let uptime = calculate_uptime(&pool).await;
+        assert!(uptime > 72.4 && uptime < 72.6);
+    }
 }

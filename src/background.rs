@@ -52,8 +52,8 @@ pub fn start_watching(
     // Spawn metrics updater task
     let metrics_pool = pool.clone();
     tokio::spawn(async move {
-        // Run once every 2 seconds
-        let mut metrics_ticker = tokio::time::interval(std::time::Duration::from_secs(2));
+        // Run once every 1 second
+        let mut metrics_ticker = tokio::time::interval(std::time::Duration::from_secs(1));
         let mut state = MetricsState::default();
 
         loop {
@@ -136,9 +136,9 @@ async fn ping_from(rx: async_channel::Receiver<watchers::Watcher>, pool: &Pool<S
         };
 
         if let Err(e) =
-            pings::log_status_change(pool, watcher.id, i64::from(status_code), status).await
+            pings::log_ping(pool, watcher.id, i64::from(status_code), status).await
         {
-            eprintln!("Error logging status change: {e}");
+            eprintln!("Error logging ping: {e}");
         }
     }
 }
