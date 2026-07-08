@@ -36,7 +36,7 @@ pub async fn get_pings_since(
 ) -> Result<Vec<PingRecord>, sqlx::Error> {
     sqlx::query_as!(
         PingRecord,
-        r#"SELECT watcher_id, timestamp as "timestamp: chrono::NaiveDateTime", status FROM pings WHERE timestamp >= ? ORDER BY timestamp ASC"#,
+        r#"SELECT watcher_id as "watcher_id!", timestamp as "timestamp: chrono::NaiveDateTime", status as "status!" FROM pings WHERE timestamp >= ? ORDER BY timestamp ASC"#,
         since
     )
     .fetch_all(pool)

@@ -30,7 +30,7 @@ pub async fn post_watcher(
 pub async fn get_my_watchers(pool: &Pool<Sqlite>, claims: &AuthClaims) -> GetWatchersResponse {
     let result = sqlx::query_as!(
         Watcher,
-        "SELECT id, url, created_by FROM watchers WHERE created_by = ?",
+        "SELECT id as \"id!\", url as \"url!\", created_by as \"created_by!\" FROM watchers WHERE created_by = ?",
         claims.0.sub
     )
     .fetch_all(pool)

@@ -11,8 +11,8 @@ pub async fn get_down_pings(pool: &Pool<Sqlite>, watcher_id: Option<i64>) -> Get
         Some(id) => {
             sqlx::query_as!(
                 Ping,
-                r#"SELECT id, watcher_id, timestamp as "timestamp: NaiveDateTime",
-                          status_code, status
+                r#"SELECT id as "id!", watcher_id as "watcher_id!", timestamp as "timestamp: NaiveDateTime",
+                          status_code as "status_code!", status as "status!"
                    FROM pings
                    WHERE watcher_id = ? AND status = 'offline'"#,
                 id
@@ -23,8 +23,8 @@ pub async fn get_down_pings(pool: &Pool<Sqlite>, watcher_id: Option<i64>) -> Get
         None => {
             sqlx::query_as!(
                 Ping,
-                r#"SELECT id, watcher_id, timestamp as "timestamp: NaiveDateTime",
-                          status_code, status
+                r#"SELECT id as "id!", watcher_id as "watcher_id!", timestamp as "timestamp: NaiveDateTime",
+                          status_code as "status_code!", status as "status!"
                    FROM pings
                    WHERE status = 'offline'"#
             )
