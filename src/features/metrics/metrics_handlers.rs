@@ -100,6 +100,27 @@ fn get_disk_usage() -> Option<f64> {
     }
 }
 
+fn get_cpu_pressure() -> Option<(f64, u64)> {
+    let content = std::fs::read_to_string("/proc/pressure/cpu").ok()?;
+    for line in content.lines() {
+        if line.starts_with("some ") {
+            let mut avg10 = None;
+            let mut total = None;
+            for part in line.split_whitespace().skip(1) {
+                if let Some(val_str) = part.strip_prefix("avg10=") {
+                    avg10 = val_str.parse::<f64>().ok();
+                } else if let Some(val_str) = part.strip_prefix("total=") {
+                    total = val_str.parse::<u64>().ok();
+                }
+            }
+            if let (Some(avg), Some(tot)) = (avg10, total) {
+                return Some((avg, tot));
+            }
+        }
+    }
+    None
+}
+
 #[allow(clippy::cast_precision_loss)]
 async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
     let Ok(watchers) = sqlx::query!("SELECT id FROM watchers")
@@ -129,7 +150,7 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
     for w in &watchers {
         let w_pings: Vec<&PingRecord> = pings.iter().filter(|p| p.watcher_id == w.id).collect();
 
-        let w_start_time = w_pings.first().map(|p| p.timestamp).unwrap_or(now);
+        let w_start_time = w_pings.first().map_or(now, |p| p.timestamp);
         let w_possible = now.signed_duration_since(w_start_time).num_seconds().max(0) as f64;
         total_possible_secs += w_possible;
 
@@ -141,9 +162,7 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
             let p_time = p.timestamp;
             let diff_secs = p_time.signed_duration_since(last_time).num_seconds().max(0) as f64;
 
-            if diff_secs > 300.0 {
-                offline_secs += diff_secs;
-            } else if current_state == "offline" {
+            if diff_secs > 300.0 || current_state == "offline" {
                 offline_secs += diff_secs;
             }
             current_state = &p.status;
@@ -151,9 +170,7 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
         }
 
         let final_secs = now.signed_duration_since(last_time).num_seconds().max(0) as f64;
-        if final_secs > 300.0 {
-            offline_secs += final_secs;
-        } else if current_state == "offline" {
+        if final_secs > 300.0 || current_state == "offline" {
             offline_secs += final_secs;
         }
 
@@ -182,6 +199,7 @@ pub async fn update_metrics(
     let load_avg = get_load_avg().unwrap_or(0.0);
     let memory_percent = get_memory_percent().unwrap_or(0.0);
     let disk_percent = get_disk_usage().unwrap_or(0.0);
+    let (avg_psi, total_psi) = get_cpu_pressure().unwrap_or((0.0, 0));
 
     let mut cpu_percent = 0.0;
     let mut cpu_usage = 0.0;
@@ -212,12 +230,19 @@ pub async fn update_metrics(
         cpu_usage,
         io_percent,
         disk_percent,
+        avg_psi,
+        total_psi,
     };
 
     metrics_cache.set_payload(metrics);
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::arithmetic_side_effects,
+    clippy::float_cmp
+)]
 mod tests {
     use super::*;
     use chrono::Utc;

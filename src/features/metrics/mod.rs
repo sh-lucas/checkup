@@ -21,6 +21,8 @@ pub struct MetricsResponse {
     pub cpu_usage: f64,
     pub io_percent: f64,
     pub disk_percent: f64,
+    pub avg_psi: f64,
+    pub total_psi: u64,
 }
 
 impl Default for MetricsResponse {
@@ -33,6 +35,8 @@ impl Default for MetricsResponse {
             cpu_usage: 0.0,
             io_percent: 0.0,
             disk_percent: 0.0,
+            avg_psi: 0.0,
+            total_psi: 0,
         }
     }
 }
