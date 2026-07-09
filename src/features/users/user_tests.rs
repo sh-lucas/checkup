@@ -9,9 +9,7 @@ mod tests {
     #[sqlx::test]
     async fn test_create_user(pool: Pool<Sqlite>) {
         let _ = dotenvy::from_filename(".env.test");
-        crate::auth::init(
-            std::env::var("JWT_SECRET").expect("JWT_SECRET must be set for tests"),
-        );
+        crate::auth::init(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set for tests"));
 
         let app = OpenApiService::new(UserApi, "User API", "1.0")
             .with(poem::middleware::AddData::new(pool));
