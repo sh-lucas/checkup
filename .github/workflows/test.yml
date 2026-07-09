@@ -2,11 +2,9 @@ name: Run Tests
 
 on:
   pull_request:
-    branches:
-      - master
-  push:
-    branches:
-      - master
+  # push:
+  #   branches-ignore:
+  #     - master
   workflow_dispatch:
 
 jobs:
@@ -21,7 +19,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: Setup Temp Database for SQLx Compile-time Checks
+      - name: Setup Mock Database (for sqlx)
         run: |
           sqlite3 /tmp/db.sqlite "VACUUM;"
           cat migrations/*.sql | sqlite3 /tmp/db.sqlite
