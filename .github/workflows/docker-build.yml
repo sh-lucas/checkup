@@ -27,15 +27,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools sqlite3
 
-      - name: Install Rust Toolchain
+      - name: Install Toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: aarch64-unknown-linux-musl
 
-      - name: Setup Temp Database for SQLx Compile-time Check
+      - name: Setup Mock Database (for sqlx)
         run: |
           sqlite3 /tmp/db.sqlite "VACUUM;"
           cat migrations/*.sql | sqlite3 /tmp/db.sqlite
+
+      - name: Run Tests
+        env:
+          DATABASE_URL: sqlite:///tmp/db.sqlite
+          JWT_SECRET: s3cr3t-test-key
+        run: cargo test
 
       - name: Build Binary
         env:
