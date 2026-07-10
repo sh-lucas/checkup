@@ -131,8 +131,9 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
     let Ok(events) = sqlx::query!(
         r#"SELECT event as "event!", timestamp as "timestamp: chrono::DateTime<chrono::Utc>"
            FROM system_uptime_events
-           WHERE reference = 'system'
-           ORDER BY timestamp ASC, id ASC"#
+           WHERE reference = 'system' AND timestamp >= ?
+           ORDER BY timestamp ASC, id ASC"#,
+        cutoff
     )
     .fetch_all(pool)
     .await
@@ -194,6 +195,8 @@ async fn calculate_uptime(pool: &Pool<Sqlite>) -> f64 {
 #[derive(Default)]
 pub struct MetricsState {
     prev_ticks: Option<CpuTicks>,
+    last_uptime: Option<f64>,
+    last_uptime_calc: Option<std::time::Instant>,
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -226,7 +229,22 @@ pub async fn update_metrics(
     }
     state.prev_ticks = current_ticks;
 
-    let uptime_percent = calculate_uptime(pool).await;
+    let uptime_percent =
+        if let (Some(last_uptime), Some(last_calc)) = (state.last_uptime, state.last_uptime_calc) {
+            if last_calc.elapsed() < std::time::Duration::from_secs(60) {
+                last_uptime
+            } else {
+                let val = calculate_uptime(pool).await;
+                state.last_uptime = Some(val);
+                state.last_uptime_calc = Some(std::time::Instant::now());
+                val
+            }
+        } else {
+            let val = calculate_uptime(pool).await;
+            state.last_uptime = Some(val);
+            state.last_uptime_calc = Some(std::time::Instant::now());
+            val
+        };
 
     let metrics = MetricsResponse {
         uptime_percent,
