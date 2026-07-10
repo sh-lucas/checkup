@@ -1,13 +1,10 @@
-use sqlx::{Pool, Sqlite};
 use poem_openapi::payload::Json;
+use sqlx::{Pool, Sqlite};
 
-use crate::auth::{self, TokenType};
 use super::{CreateUserRequest, CreateUserResponse, UserAuthTokens};
+use crate::auth::{self, TokenType};
 
-pub async fn create_user(
-    pool: &Pool<Sqlite>,
-    user: CreateUserRequest,
-) -> CreateUserResponse {
+pub async fn create_user(pool: &Pool<Sqlite>, user: CreateUserRequest) -> CreateUserResponse {
     let passhash = match bcrypt::hash(&user.password, bcrypt::DEFAULT_COST) {
         Ok(hash) => hash,
         Err(e) => return CreateUserResponse::BadRequest(Json(e.to_string())),

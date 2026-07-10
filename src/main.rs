@@ -1,6 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![deny(clippy::arithmetic_side_effects)]
-#![deny(clippy::unwrap_used)]
+#![cfg_attr(not(test), deny(clippy::unwrap_used))]
+#![allow(clippy::duration_suboptimal_units)]
 
 use std::time::Duration;
 

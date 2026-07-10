@@ -1,4 +1,4 @@
-use poem::{Route, get, handler, web::Json, EndpointExt, middleware::Cors};
+use poem::{EndpointExt, Route, get, handler, middleware::Cors, web::Json};
 use poem_openapi::OpenApiService;
 use std::sync::Arc;
 

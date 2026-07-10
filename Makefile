@@ -1,5 +1,4 @@
-# This is also a sort of documentation =)
-# most commands around here are useful during development or to understand rust
+.PHONY: run test lint database
 
 run:
 	bacon run
@@ -7,8 +6,11 @@ run:
 test:
 	cargo test
 
+lint:
+	cargo clippy --all-targets -- -D warnings
+	cargo fmt --check
+
 # creates the database, altough sqlite pretty much does it automatically
-.PHONY: database
 database:
 	rm ./database/database.db || true
 	rm ./database/database.db-wal || true
