@@ -46,7 +46,7 @@ pub fn with_routes(app: Route) -> Route {
     let swagger_ui = api_service.swagger_ui();
     let redoc_ui = api_service.redoc();
 
-    app.nest("/", api_service.with(Cors::new()))
+    app.nest("/api", api_service.with(Cors::new()))
         .nest("/docs", swagger_ui)
         .nest("/redoc", redoc_ui)
 }
@@ -63,7 +63,7 @@ mod tests {
     async fn test_healthz_route() {
         let app = with_routes(Route::new());
         let cli = TestClient::new(app);
-        let resp = cli.get("/").send().await;
+        let resp = cli.get("/api").send().await;
 
         resp.assert_status(poem::http::StatusCode::OK);
         let body = resp.0.into_body().into_string().await.unwrap();
@@ -83,7 +83,7 @@ mod tests {
         let app = with_routes(Route::new()).with(poem::middleware::AddData::new(metrics_cache));
 
         let cli = TestClient::new(app);
-        let resp = cli.get("/metrics").send().await;
+        let resp = cli.get("/api/metrics").send().await;
 
         resp.assert_status(poem::http::StatusCode::OK);
         let body = resp.0.into_body().into_string().await.unwrap();
@@ -103,7 +103,7 @@ mod tests {
         let app = with_routes(Route::new()).with(poem::middleware::AddData::new(metrics_cache));
 
         let cli = TestClient::new(app);
-        let resp = cli.get("/metrics/stream").send().await;
+        let resp = cli.get("/api/metrics/stream").send().await;
 
         resp.assert_status(poem::http::StatusCode::OK);
         resp.assert_header("content-type", "text/event-stream");
@@ -124,7 +124,7 @@ mod tests {
 
         // 1. Regular GET request with Origin should get Access-Control-Allow-Origin back
         let resp = cli
-            .get("/metrics")
+            .get("/api/metrics")
             .header("origin", "https://sh-lucas.dev")
             .send()
             .await;
@@ -133,7 +133,7 @@ mod tests {
 
         // 2. Preflight OPTIONS request should succeed and return CORS headers
         let resp = cli
-            .options("/metrics")
+            .options("/api/metrics")
             .header("origin", "https://example.com")
             .header("access-control-request-method", "GET")
             .send()

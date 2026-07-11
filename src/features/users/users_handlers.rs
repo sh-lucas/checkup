@@ -161,7 +161,7 @@ mod tests {
 
         // 0. Register without token -> Expect Unauthorized (401)
         let resp = cli
-            .post("/users/register")
+            .post("/api/users/register")
             .body_json(&json!({
                 "email": "test@example.com",
                 "password": "password123"
@@ -180,7 +180,7 @@ mod tests {
 
         // 1. Register a new user
         let resp = cli
-            .post("/users/register")
+            .post("/api/users/register")
             .header("Authorization", format!("Bearer {bootstrap_token}"))
             .body_json(&json!({
                 "email": "test@example.com",
@@ -201,7 +201,7 @@ mod tests {
 
         // 2. Register duplicate user -> Expect Conflict (409)
         let resp = cli
-            .post("/users/register")
+            .post("/api/users/register")
             .header("Authorization", format!("Bearer {bootstrap_token}"))
             .body_json(&json!({
                 "email": "test@example.com",
@@ -213,7 +213,7 @@ mod tests {
 
         // 3. Login
         let resp = cli
-            .post("/users/login")
+            .post("/api/users/login")
             .body_json(&json!({
                 "email": "test@example.com",
                 "password": "password123"
@@ -232,7 +232,7 @@ mod tests {
 
         // 4. Retrieve Profile via /users/me
         let resp = cli
-            .get("/users/me")
+            .get("/api/users/me")
             .header("Authorization", format!("Bearer {token}"))
             .send()
             .await;
