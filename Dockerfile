@@ -1,6 +1,6 @@
 FROM alpine:3.20
 
-# Install SSL certificates for outbound pings/HTTPS requests
+# Install SSL certificates for outbound HTTPS requests
 RUN apk add --no-cache ca-certificates
 
 WORKDIR /app

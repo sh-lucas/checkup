@@ -1,17 +1,43 @@
-use poem::{EndpointExt, Route, get, handler, middleware::Cors, web::Json};
-use poem_openapi::OpenApiService;
-use std::sync::Arc;
+use poem::{EndpointExt, Route, middleware::Cors};
+use poem_openapi::{Object, OpenApi, OpenApiService, payload::Json};
 
-use crate::features::metrics::MetricsCache;
+use crate::api_response;
 use crate::features::{metrics, pings, users, watchers};
 
-pub fn with_routes(app: Route, _metrics_cache: Arc<MetricsCache>) -> Route {
+#[derive(Debug, serde::Serialize, Object)]
+pub struct Healthz {
+    pub message: String,
+}
+
+api_response! {
+    pub enum HealthResponse {
+        #[oai(status = 200)]
+        Ok(Json<Healthz>),
+    }
+}
+
+pub struct SystemApi;
+
+#[OpenApi]
+impl SystemApi {
+    /// Server health check
+    #[oai(path = "/", method = "get")]
+    #[allow(clippy::unused_async)]
+    async fn healthz(&self) -> HealthResponse {
+        HealthResponse::Ok(Json(Healthz {
+            message: "server online".to_string(),
+        }))
+    }
+}
+
+pub fn with_routes(app: Route) -> Route {
     let api_service = OpenApiService::new(
         (
-            pings::PingsApi,
             users::UserApi,
+            pings::PingsApi,
             watchers::WatchersApi,
             metrics::MetricsApi,
+            SystemApi,
         ),
         "checkup Rest API",
         "1.0",
@@ -20,23 +46,9 @@ pub fn with_routes(app: Route, _metrics_cache: Arc<MetricsCache>) -> Route {
     let swagger_ui = api_service.swagger_ui();
     let redoc_ui = api_service.redoc();
 
-    app.at("/", get(healthz))
-        .nest("/api", api_service.with(Cors::new()))
+    app.nest("/", api_service.with(Cors::new()))
         .nest("/docs", swagger_ui)
         .nest("/redoc", redoc_ui)
-}
-
-#[derive(Debug, serde::Serialize)]
-struct Healthz {
-    message: String,
-}
-
-// health check handler
-#[handler]
-fn healthz() -> Json<Healthz> {
-    Json(Healthz {
-        message: "server online".to_string(),
-    })
 }
 
 #[cfg(test)]
@@ -45,22 +57,33 @@ mod tests {
     use super::*;
     use futures::StreamExt;
     use poem::{EndpointExt, test::TestClient};
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_healthz_route() {
+        let app = with_routes(Route::new());
+        let cli = TestClient::new(app);
+        let resp = cli.get("/").send().await;
+
+        resp.assert_status(poem::http::StatusCode::OK);
+        let body = resp.0.into_body().into_string().await.unwrap();
+        assert!(body.contains(r#""message":"server online""#));
+    }
 
     #[tokio::test]
     async fn test_metrics_route() {
         use crate::features::metrics::MetricsResponse;
 
-        let metrics_cache = Arc::new(MetricsCache::new());
+        let metrics_cache = Arc::new(metrics::MetricsCache::new());
         metrics_cache.set_payload(MetricsResponse {
             uptime_percent: 100.0,
             ..MetricsResponse::default()
         });
 
-        let app = with_routes(Route::new(), metrics_cache.clone())
-            .with(poem::middleware::AddData::new(metrics_cache));
+        let app = with_routes(Route::new()).with(poem::middleware::AddData::new(metrics_cache));
 
         let cli = TestClient::new(app);
-        let resp = cli.get("/api/metrics").send().await;
+        let resp = cli.get("/metrics").send().await;
 
         resp.assert_status(poem::http::StatusCode::OK);
         let body = resp.0.into_body().into_string().await.unwrap();
@@ -71,17 +94,16 @@ mod tests {
     async fn test_metrics_stream_route() {
         use crate::features::metrics::MetricsResponse;
 
-        let metrics_cache = Arc::new(MetricsCache::new());
+        let metrics_cache = Arc::new(metrics::MetricsCache::new());
         metrics_cache.set_payload(MetricsResponse {
             uptime_percent: 100.0,
             ..MetricsResponse::default()
         });
 
-        let app = with_routes(Route::new(), metrics_cache.clone())
-            .with(poem::middleware::AddData::new(metrics_cache));
+        let app = with_routes(Route::new()).with(poem::middleware::AddData::new(metrics_cache));
 
         let cli = TestClient::new(app);
-        let resp = cli.get("/api/metrics/stream").send().await;
+        let resp = cli.get("/metrics/stream").send().await;
 
         resp.assert_status(poem::http::StatusCode::OK);
         resp.assert_header("content-type", "text/event-stream");
@@ -95,15 +117,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_headers() {
-        let metrics_cache = Arc::new(MetricsCache::new());
-        let app = with_routes(Route::new(), metrics_cache.clone())
-            .with(poem::middleware::AddData::new(metrics_cache));
+        let metrics_cache = Arc::new(metrics::MetricsCache::new());
+        let app = with_routes(Route::new()).with(poem::middleware::AddData::new(metrics_cache));
 
         let cli = TestClient::new(app);
 
         // 1. Regular GET request with Origin should get Access-Control-Allow-Origin back
         let resp = cli
-            .get("/api/metrics")
+            .get("/metrics")
             .header("origin", "https://sh-lucas.dev")
             .send()
             .await;
@@ -112,7 +133,7 @@ mod tests {
 
         // 2. Preflight OPTIONS request should succeed and return CORS headers
         let resp = cli
-            .options("/api/metrics")
+            .options("/metrics")
             .header("origin", "https://example.com")
             .header("access-control-request-method", "GET")
             .send()

@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use dotenvy::dotenv;
 use poem::{EndpointExt, Route, Server, listener::TcpListener, middleware::AddData};
+use secrecy::ExposeSecret;
 use tokio::signal;
 
 mod auth;
@@ -25,15 +26,15 @@ async fn main() -> Result<(), std::io::Error> {
     dotenv().ok();
 
     let config = Config::from_env();
-    auth::init(config.jwt_secret.clone());
 
-    let pool = database::setup_database(&config.database_url).await;
+    let pool = database::setup_database(config.database_url.expose_secret()).await;
 
     let metrics_cache = std::sync::Arc::new(features::metrics::MetricsCache::new());
 
-    let app = routes::with_routes(Route::new(), metrics_cache.clone())
+    let app = routes::with_routes(Route::new())
         .with(AddData::new(pool.clone()))
         .with(AddData::new(metrics_cache.clone()))
+        .with(AddData::new(config.clone()))
         .with(middlewares::BasicLog);
 
     let host = format!("0.0.0.0:{}", config.port);

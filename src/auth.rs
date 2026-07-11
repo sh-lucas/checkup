@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use poem::http;
 use serde::{Deserialize, Serialize};
@@ -14,25 +12,16 @@ pub enum TokenType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i64,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: chrono::DateTime<chrono::Utc>,
     pub aud: TokenType,
 }
 
-static SECRET: OnceLock<String> = OnceLock::new();
-
-pub fn init(secret: String) {
-    SECRET
-        .set(secret)
-        .expect("auth::init must be called exactly once at startup");
-}
-
-fn secret() -> &'static str {
-    SECRET.get().expect("auth::init was not called")
-}
-
-pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64) -> String {
+pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64, secret: &str) -> String {
     let expiration = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::hours(exp_hours.cast_signed()))
+        .checked_add_signed(chrono::Duration::hours(
+            i64::try_from(exp_hours).expect("exp_hours overflow"),
+        ))
         .expect("Invalid expiration time");
 
     let claims = Claims {
@@ -44,16 +33,19 @@ pub fn gen_auth_token(user_id: i64, token_type: TokenType, exp_hours: u64) -> St
     encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(secret().as_ref()),
+        &EncodingKey::from_secret(secret.as_bytes()),
     )
     .expect("Could not generate token")
 }
 
-pub fn parse_auth_token(token: &str) -> Result<Claims, poem::Error> {
+pub fn parse_auth_token(token: &str, secret: &str) -> Result<Claims, poem::Error> {
+    let mut validation = Validation::default();
+    validation.validate_aud = false;
+
     let data = decode::<Claims>(
         token,
-        &DecodingKey::from_secret(secret().as_ref()),
-        &Validation::default(),
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &validation,
     )
     .map_err(|e| poem::Error::from_string(e.to_string(), http::StatusCode::UNAUTHORIZED))?;
 

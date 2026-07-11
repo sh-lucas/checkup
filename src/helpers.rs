@@ -6,6 +6,9 @@ pub fn is_unique_err(err: &sqlx::Error) -> bool {
         == Some("2067")
 }
 
+/// Helper macro that wraps `#[derive(poem_openapi::ApiResponse)]` to reduce boilerplate.
+/// Note: This is equivalent to declaring a standard Poem `OpenAPI` response enum with
+/// `#[derive(poem_openapi::ApiResponse)]` directly.
 #[macro_export]
 macro_rules! api_response {
     (
