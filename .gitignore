@@ -6,3 +6,4 @@
 /turso
 bench/*
 *.key
+migrations/schema.sql
