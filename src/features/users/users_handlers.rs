@@ -11,7 +11,11 @@ use crate::auth::{TokenType, gen_auth_token};
 use crate::helpers::is_unique_err;
 use crate::middlewares::AuthClaims;
 
-pub async fn register(pool: &SqlitePool, req: CreateUserRequest) -> RegisterResponse {
+pub async fn register(
+    pool: &SqlitePool,
+    _auth: AuthClaims,
+    req: CreateUserRequest,
+) -> RegisterResponse {
     if req.email.trim().is_empty() || req.password.len() < 6 {
         return RegisterResponse::BadRequest(Json(ErrorResponse {
             message: "Invalid email or password (min 6 characters)".to_string(),
@@ -130,6 +134,7 @@ pub async fn me(pool: &SqlitePool, auth: AuthClaims) -> MeResponse {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use poem::{EndpointExt, Route, test::TestClient};
+    use secrecy::ExposeSecret;
     use serde_json::json;
     use sqlx::SqlitePool;
 
@@ -150,13 +155,33 @@ mod tests {
         // Build app
         let app = crate::routes::with_routes(Route::new())
             .with(poem::middleware::AddData::new(pool))
-            .with(poem::middleware::AddData::new(config));
+            .with(poem::middleware::AddData::new(config.clone()));
 
         let cli = TestClient::new(app);
+
+        // 0. Register without token -> Expect Unauthorized (401)
+        let resp = cli
+            .post("/users/register")
+            .body_json(&json!({
+                "email": "test@example.com",
+                "password": "password123"
+            }))
+            .send()
+            .await;
+        resp.assert_status(poem::http::StatusCode::UNAUTHORIZED);
+
+        // Generate bootstrap token
+        let bootstrap_token = crate::auth::gen_auth_token(
+            1,
+            crate::auth::TokenType::Access,
+            24,
+            config.jwt_secret.expose_secret(),
+        );
 
         // 1. Register a new user
         let resp = cli
             .post("/users/register")
+            .header("Authorization", format!("Bearer {bootstrap_token}"))
             .body_json(&json!({
                 "email": "test@example.com",
                 "password": "password123"
@@ -177,6 +202,7 @@ mod tests {
         // 2. Register duplicate user -> Expect Conflict (409)
         let resp = cli
             .post("/users/register")
+            .header("Authorization", format!("Bearer {bootstrap_token}"))
             .body_json(&json!({
                 "email": "test@example.com",
                 "password": "password123"
