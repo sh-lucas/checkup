@@ -21,6 +21,12 @@ bcrypt = "0.19.1"
 libc = "0.2.177"
 
 [profile.release]
-lto = true
+opt-level = 3
+lto = "fat"
 codegen-units = 1
+panic = "abort"
+strip = true
+
+# Optimize all external dependencies (including SQLx and SQLite wrappers)
+[profile.release.package."*"]
 opt-level = 3

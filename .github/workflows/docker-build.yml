@@ -47,6 +47,8 @@ jobs:
         env:
           DATABASE_URL: sqlite:///tmp/db.sqlite
           CC_aarch64_unknown_linux_musl: musl-gcc
+          CFLAGS_aarch64_unknown_linux_musl: "-O3 -mcpu=neoverse-n1"
+          RUSTFLAGS: "-C target-cpu=neoverse-n1"
         run: cargo build --release --target aarch64-unknown-linux-musl
 
       - name: Build and Push with Podman
