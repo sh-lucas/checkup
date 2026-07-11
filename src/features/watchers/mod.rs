@@ -5,7 +5,7 @@ use poem_openapi::{Object, OpenApi, payload::Json};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
-use crate::auth::AuthClaims;
+use crate::middlewares::AuthClaims;
 
 // 1. Domain Model
 #[derive(Debug, serde::Deserialize, serde::Serialize, sqlx::FromRow, Object)]

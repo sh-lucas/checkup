@@ -4,7 +4,7 @@ use sqlx::{Pool, Sqlite};
 use super::{
     CreateWatcherRequest, CreateWatcherResponse, GetWatchersResponse, GetWatchersResult, Watcher,
 };
-use crate::auth::AuthClaims;
+use crate::middlewares::AuthClaims;
 
 pub async fn post_watcher(
     pool: &Pool<Sqlite>,
