@@ -4,8 +4,8 @@ use sqlx::sqlite::Sqlite;
 pub fn spawn(pool: Pool<Sqlite>) {
     tokio::spawn(async move {
         // Run immediately on boot to catch downtime gap
-        if let Err(e) = run_heartbeat(&pool, "system").await {
-            eprintln!("Error running initial heartbeat: {e}");
+        if let Err(error) = run_heartbeat(&pool, "system").await {
+            tracing::error!(%error, "failed to run initial heartbeat");
         }
 
         // Run once every 5 minutes
@@ -15,8 +15,8 @@ pub fn spawn(pool: Pool<Sqlite>) {
 
         loop {
             heartbeat_ticker.tick().await;
-            if let Err(e) = run_heartbeat(&pool, "system").await {
-                eprintln!("Error running heartbeat: {e}");
+            if let Err(error) = run_heartbeat(&pool, "system").await {
+                tracing::error!(%error, "failed to run heartbeat");
             }
         }
     });

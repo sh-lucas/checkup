@@ -17,6 +17,7 @@ mod database;
 mod features;
 mod helpers;
 mod middlewares;
+mod observability;
 mod routes;
 
 use crate::config::Config;
@@ -26,8 +27,13 @@ async fn main() -> Result<(), std::io::Error> {
     dotenv().ok();
 
     let config = Config::from_env();
+    let observability = observability::init(&config.observability);
 
-    let pool = database::setup_database(config.database_url.expose_secret()).await;
+    let pool = database::setup_database(
+        config.database_url.expose_secret(),
+        config.observability.slow_query_threshold,
+    )
+    .await;
 
     let metrics_cache = std::sync::Arc::new(features::metrics::MetricsCache::new());
 
@@ -35,10 +41,10 @@ async fn main() -> Result<(), std::io::Error> {
         .with(AddData::new(pool.clone()))
         .with(AddData::new(metrics_cache.clone()))
         .with(AddData::new(config.clone()))
-        .with(middlewares::BasicLog);
+        .with(middlewares::HttpObservability::new());
 
     let host = format!("0.0.0.0:{}", config.port);
-    println!("Listening on http://{host}");
+    tracing::info!(%host, "server listening");
 
     let worker = background::start_watching(
         &pool,
@@ -51,11 +57,11 @@ async fn main() -> Result<(), std::io::Error> {
         .run_with_graceful_shutdown(app, shutdown_signal(), Some(Duration::from_secs(10)))
         .await?;
 
-    println!("Server stopped, aborting background workers...");
+    tracing::info!("server stopped; aborting background workers");
     worker.abort();
     let _ = worker.await;
 
-    println!("Server exiting.");
+    observability.shutdown();
     Ok(())
 }
 
@@ -82,5 +88,5 @@ async fn shutdown_signal() {
         () = terminate => {},
     }
 
-    println!("\nSignal received, starting graceful shutdown...");
+    tracing::info!("signal received; starting graceful shutdown");
 }

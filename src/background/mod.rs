@@ -20,6 +20,7 @@ pub fn start_watching(
 ) -> JoinHandle<()> {
     let pool = pool.clone();
 
+    tracing::info!(interval_secs, num_workers, "starting background workers");
     garbage_collector::spawn(pool.clone());
     metrics_updater::spawn(pool.clone(), metrics_cache);
     heartbeat::spawn(pool.clone());
