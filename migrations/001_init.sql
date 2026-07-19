@@ -1,2 +1,2 @@
--- This migration is placeholder. 
+-- This migration is placeholder.
 -- The user table creation is managed by 20260125224556_create_users_table.sql and migrated in 20260711180000_migrate_users_schema.sql.

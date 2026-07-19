@@ -10,35 +10,35 @@ pub fn spawn(pool: Pool<Sqlite>) {
 
             let Some(cutoff) = chrono::Utc::now().checked_sub_signed(chrono::Duration::days(7))
             else {
-                eprintln!("Overflow calculating cutoff datetime");
+                tracing::error!("overflow calculating garbage-collection cutoff");
                 continue;
             };
 
             // Delete old pings
-            if let Err(e) = sqlx::query!("DELETE FROM pings WHERE timestamp < ?", cutoff)
+            if let Err(error) = sqlx::query!("DELETE FROM pings WHERE timestamp < ?", cutoff)
                 .execute(&pool)
                 .await
             {
-                eprintln!("Error running garbage collector for pings: {e}");
+                tracing::error!(%error, "failed to collect expired pings");
             }
 
             // Delete old system uptime events
-            if let Err(e) = sqlx::query!(
+            if let Err(error) = sqlx::query!(
                 "DELETE FROM system_uptime_events WHERE timestamp < ?",
                 cutoff
             )
             .execute(&pool)
             .await
             {
-                eprintln!("Error running garbage collector for system events: {e}");
+                tracing::error!(%error, "failed to collect expired system events");
             }
 
             // Reclaim pages freed by the deletion since auto_vacuum is INCREMENTAL
-            if let Err(e) = sqlx::query("PRAGMA incremental_vacuum")
+            if let Err(error) = sqlx::query("PRAGMA incremental_vacuum")
                 .execute(&pool)
                 .await
             {
-                eprintln!("Error running incremental_vacuum: {e}");
+                tracing::error!(%error, "failed to run incremental vacuum");
             }
         }
     });

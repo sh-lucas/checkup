@@ -27,8 +27,8 @@ pub fn spawn(
             }
 
             for handle in handles {
-                if let Err(e) = handle.await {
-                    eprintln!("Ping worker panicked: {e}");
+                if let Err(error) = handle.await {
+                    tracing::error!(%error, "ping worker panicked");
                 }
             }
         }
@@ -45,13 +45,13 @@ fn stream_watchers(pool: &Pool<Sqlite>) -> async_channel::Receiver<watchers::Wat
 
         while let Some(result) = stream.next().await {
             match result {
-                Err(e) => {
-                    eprintln!("Error fetching watcher: {e}");
+                Err(error) => {
+                    tracing::error!(%error, "failed to fetch watcher");
                     break;
                 }
                 Ok(watcher) => {
                     if tx.send(watcher).await.is_err() {
-                        eprintln!("Error sending watcher to channel");
+                        tracing::error!("watcher channel closed before all watchers were sent");
                         break;
                     }
                 }
@@ -68,8 +68,8 @@ async fn ping_from(rx: async_channel::Receiver<watchers::Watcher>, pool: &Pool<S
 
         let status_code = match response {
             Ok(resp) => resp.status().as_u16(),
-            Err(e) => {
-                eprintln!("Connection failure for {}: {e}", watcher.url);
+            Err(error) => {
+                tracing::warn!(watcher_id = watcher.id, url = %watcher.url, %error, "watcher connection failed");
                 599
             }
         };
@@ -80,8 +80,9 @@ async fn ping_from(rx: async_channel::Receiver<watchers::Watcher>, pool: &Pool<S
             "offline"
         };
 
-        if let Err(e) = pings::log_ping(pool, watcher.id, i64::from(status_code), status).await {
-            eprintln!("Error logging ping: {e}");
+        if let Err(error) = pings::log_ping(pool, watcher.id, i64::from(status_code), status).await
+        {
+            tracing::error!(watcher_id = watcher.id, status_code, %error, "failed to record ping");
         }
     }
 }
