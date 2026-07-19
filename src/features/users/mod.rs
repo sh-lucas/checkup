@@ -42,6 +42,8 @@ api_response! {
         Created(Json<UserResponse>),
         #[oai(status = 400)]
         BadRequest(Json<ErrorResponse>),
+        #[oai(status = 401)]
+        Unauthorized(Json<ErrorResponse>),
         #[oai(status = 409)]
         Conflict(Json<ErrorResponse>),
         #[oai(status = 500)]
@@ -82,9 +84,10 @@ impl UserApi {
     async fn register(
         &self,
         pool: Data<&SqlitePool>,
+        auth: AuthClaims,
         body: Json<CreateUserRequest>,
     ) -> RegisterResponse {
-        users_handlers::register(pool.0, body.0).await
+        users_handlers::register(pool.0, auth, body.0).await
     }
 
     /// Authenticate a user and return a JWT token

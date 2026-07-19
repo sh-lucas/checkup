@@ -1,3 +1,4 @@
-# rust-tmpl
+# check.up
 
-This is a rust template repository.
+This is a healthcheck api written in rust.
+Currently in development =)

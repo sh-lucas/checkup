@@ -113,9 +113,8 @@ fn init_subscriber(
     tracer_provider: Option<&SdkTracerProvider>,
 ) {
     if config.deployment_environment == "local" {
-        let telemetry = tracer_provider.map(|provider| {
-            tracing_opentelemetry::layer().with_tracer(provider.tracer("rust-tmpl"))
-        });
+        let telemetry = tracer_provider
+            .map(|provider| tracing_opentelemetry::layer().with_tracer(provider.tracer("checkup")));
         tracing_subscriber::registry()
             .with(telemetry)
             .with(
@@ -128,9 +127,8 @@ fn init_subscriber(
             .with(filter)
             .init();
     } else {
-        let telemetry = tracer_provider.map(|provider| {
-            tracing_opentelemetry::layer().with_tracer(provider.tracer("rust-tmpl"))
-        });
+        let telemetry = tracer_provider
+            .map(|provider| tracing_opentelemetry::layer().with_tracer(provider.tracer("checkup")));
         tracing_subscriber::registry()
             .with(filter)
             .with(

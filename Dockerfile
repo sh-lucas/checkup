@@ -6,7 +6,7 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 # Copy binary from host build context (pre-built on the runner)
-COPY ./target/aarch64-unknown-linux-musl/release/rust-tmpl /app/rust-tmpl
+COPY ./target/aarch64-unknown-linux-musl/release/checkup /app/checkup
 
 # Expose port
 EXPOSE 80
@@ -16,4 +16,4 @@ ENV PORT=80
 ENV DATABASE_URL=sqlite:///app/database.db
 ENV JWT_SECRET=super-secret-jwt-key
 
-CMD ["/app/rust-tmpl"]
+CMD ["/app/checkup"]

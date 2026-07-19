@@ -1,18 +1,28 @@
+use crate::features::metrics::MetricsCache;
 use sqlx::pool::Pool;
 use sqlx::sqlite::Sqlite;
-use std::time::Duration;
+use std::sync::Arc;
 use tokio::task::JoinHandle;
 
-/// Spawns generic background workers. The returned handle lets
-/// `main` abort the tasks on shutdown.
-pub fn start(_pool: Pool<Sqlite>) -> JoinHandle<()> {
-    tokio::spawn(async move {
-        tracing::info!("background worker started");
-        let mut interval = tokio::time::interval(Duration::from_secs(3600));
-        loop {
-            interval.tick().await;
-            // Place periodic cleanup/telemetry tasks here.
-            tracing::debug!("background worker tick");
-        }
-    })
+mod garbage_collector;
+mod heartbeat;
+mod metrics_updater;
+mod ping;
+
+/// Spawns the background ping loop. Pings every watcher once per `interval`
+/// seconds using `num_workers` concurrent tasks. The returned handle lets
+/// `main` abort the loop on shutdown.
+pub fn start_watching(
+    pool: &Pool<Sqlite>,
+    interval_secs: u64,
+    num_workers: usize,
+    metrics_cache: Arc<MetricsCache>,
+) -> JoinHandle<()> {
+    let pool = pool.clone();
+
+    tracing::info!(interval_secs, num_workers, "starting background workers");
+    garbage_collector::spawn(pool.clone());
+    metrics_updater::spawn(pool.clone(), metrics_cache);
+    heartbeat::spawn(pool.clone());
+    ping::spawn(pool, interval_secs, num_workers)
 }

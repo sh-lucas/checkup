@@ -1,6 +1,2 @@
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
+-- This migration is placeholder.
+-- The user table creation is managed by 20260125224556_create_users_table.sql and migrated in 20260711180000_migrate_users_schema.sql.

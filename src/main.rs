@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use dotenvy::dotenv;
 use poem::{EndpointExt, Route, Server, listener::TcpListener, middleware::AddData};
+use secrecy::ExposeSecret;
 use tokio::signal;
 
 mod auth;
@@ -18,8 +19,6 @@ mod helpers;
 mod middlewares;
 mod observability;
 mod routes;
-
-use secrecy::ExposeSecret;
 
 use crate::config::Config;
 
@@ -36,15 +35,23 @@ async fn main() -> Result<(), std::io::Error> {
     )
     .await;
 
+    let metrics_cache = std::sync::Arc::new(features::metrics::MetricsCache::new());
+
     let app = routes::with_routes(Route::new())
         .with(AddData::new(pool.clone()))
+        .with(AddData::new(metrics_cache.clone()))
         .with(AddData::new(config.clone()))
         .with(middlewares::HttpObservability::new());
 
     let host = format!("0.0.0.0:{}", config.port);
     tracing::info!(%host, "server listening");
 
-    let worker = background::start(pool.clone());
+    let worker = background::start_watching(
+        &pool,
+        config.ping_interval_secs,
+        config.num_ping_workers,
+        metrics_cache,
+    );
 
     Server::new(TcpListener::bind(host))
         .run_with_graceful_shutdown(app, shutdown_signal(), Some(Duration::from_secs(10)))

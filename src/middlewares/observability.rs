@@ -27,7 +27,7 @@ pub struct HttpObservability {
 
 impl HttpObservability {
     pub fn new() -> Self {
-        let meter = global::meter("rust-tmpl.http");
+        let meter = global::meter("checkup.http");
         Self {
             requests: meter
                 .u64_counter("http.server.request.count")
