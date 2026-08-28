@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum TokenType {
     Access,
-    Refresh,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -52,7 +51,7 @@ pub fn parse_auth_token(token: &str, secret: &str) -> Result<Claims, poem::Error
     // `aud` is already required by the Claims type, but we double-check that
     // it deserialized to one of the known variants (defense in depth).
     match data.claims.aud {
-        TokenType::Access | TokenType::Refresh => {}
+        TokenType::Access => {}
     }
 
     Ok(data.claims)
