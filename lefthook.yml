@@ -5,6 +5,6 @@ pre-commit:
   parallel: false
   commands:
     lint:
-      run: just lint
+      run: make lint
     test:
-      run: just test
+      run: make test
