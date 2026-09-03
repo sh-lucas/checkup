@@ -5,6 +5,13 @@ DELETE FROM users
 WHERE email = 'admin'
   AND password_hash = 'admin';
 
+DELETE FROM pings
+WHERE watcher_id IN (
+    SELECT id FROM watchers
+    WHERE url = 'https://google.com'
+      AND created_by = 1
+);
+
 DELETE FROM watchers
 WHERE url = 'https://google.com'
   AND created_by = 1;
